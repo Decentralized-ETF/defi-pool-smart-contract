@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity =0.6.12;
+pragma solidity >=0.6.12;
 pragma experimental ABIEncoderV2;
 
 import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
@@ -10,23 +10,19 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract Investment is ReentrancyGuard, Ownable {
-
+/*
     using Counters for Counters.Counter;
     Counters.Counter private _investmentIds;
 
     uint256 public minInvestmentAmount = 1 ether; // should be at least 1
+
+    mapping(address => InvestmentData[]) private investmentDataByUser;
 
     struct UserInvestmentData {
         uint256 totalMaticUserInvested;
         uint256 firstActiveInvestmentIndex; // for gas optimization if many investments
         InvestmentData[] investments;
     }
-
-
-
-
-
-
 
     struct InvestmentData {
         bool active;
@@ -53,7 +49,7 @@ contract Investment is ReentrancyGuard, Ownable {
         address sender,
         uint amount);
 
-    mapping(address => UserInvestmentData) private investmentDataByUser;
+
 
     uint24 public constant poolFee = 3000;
 
@@ -281,5 +277,6 @@ contract Investment is ReentrancyGuard, Ownable {
         });
         return pooData;
     }
+    */
 }
 

@@ -1,4 +1,4 @@
-const Investment = artifacts.require('Investment.sol')
+const TestInvestment = artifacts.require('TestInvestment.sol')
 module.exports = async deployer => {
-  deployer.deploy(Investment);
+  deployer.deploy(TestInvestment);
 }

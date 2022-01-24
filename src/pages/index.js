@@ -1,9 +1,10 @@
 import Web3Modal from "web3modal";
-import { ethers} from "ethers";
+import { ethers } from "ethers";
 import Investment from "../../build/contracts/Investment.json";
+import TestInvestment from "../../build/contracts/TestInvestment.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = '0x0Fab59613d0c36f710F45ce73E248ebA3Aa999B7';
+const contractAddress = '0xd884eaBF0A542EDb2304A9799924180a59D5CEFf';
 const tokenAddress = '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270';
 function HomePage() {
 
@@ -23,25 +24,104 @@ function HomePage() {
                 Erc20Token.abi, signer);
 
             const approval = await tokenContract.approve(contractAddress,
-                value,{
-                    from: accounts[0],
-                    gasLimit: 3500000,
-                });
+                value, {
+                from: accounts[0],
+                gasLimit: 3500000,
+            });
             await approval.wait();
 
 
             const tx = await contract.initInvestment(
-                { from: accounts[0],
+                {
+                    from: accounts[0],
                     value,
-                gasLimit: 3500000,
+                    gasLimit: 3500000,
                 });
             console.log(tx);
             await tx.wait();
         }
-        catch(error){
+        catch (error) {
             console.log(error);
         }
     }
+
+    const investLocal = async (e) => {
+        try {
+           // const web3Modal = new Web3Modal();
+            //const connection = await web3Modal.connect();
+            const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');
+            const accounts = await provider.listAccounts();
+            console.log(accounts);
+            const signer = provider.getSigner();
+            const contract = new ethers.Contract(contractAddress,
+                TestInvestment.abi, signer);
+            const value = ethers.utils.parseUnits('5', 'ether')
+            console.log(value.toString());
+
+            const tx = await contract.initInvestment(
+                {
+                    value,
+                    gasLimit: 3500000,
+                });
+            console.log(tx);
+            await tx.wait();
+        }
+        catch (error) {
+            console.log(error);
+        }
+    }
+
+    const getMyInvestmentsLocal = async (e) => {
+        try {
+           // const web3Modal = new Web3Modal();
+            //const connection = await web3Modal.connect();
+            const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');
+            const signer = provider.getSigner();
+            const contract = new ethers.Contract(contractAddress,
+                TestInvestment.abi, signer);
+            const result = await contract.getMyInvestments(
+                {
+                    gasLimit: 3500000,
+                });
+            console.log(result);
+        }
+        catch (error) {
+            console.log(error);
+        }
+    }
+
+    const getInvestDataLocal = async (e) => {
+        try {
+            const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');
+            const signer = provider.getSigner();
+            const contract = new ethers.Contract(contractAddress,
+                TestInvestment.abi, signer);
+            const result = await contract.getMyInvestment(0,
+                {
+                    gasLimit: 3500000,
+                });
+            console.log(result);
+        }
+        catch (error) {
+            console.log(error);
+        }
+    }
+
+    const getPoolDataDataLocal = async (e) => {
+        try {
+            const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');
+            const signer = provider.getSigner();
+            const contract = new ethers.Contract(contractAddress,
+                TestInvestment.abi, signer);
+            const result = await contract.getPoolData();
+            console.log(result);
+        }
+        catch (error) {
+            console.log(error);
+        }
+    }
+    
+
 
     const refund = async (e) => {
         try {
@@ -53,24 +133,44 @@ function HomePage() {
             const contract = new ethers.Contract(contractAddress,
                 Investment.abi, signer);
 
-            const tx = await contract.finishInvestment(1,{
-                from :accounts[0],
+            const tx = await contract.finishInvestment(1, {
+                from: accounts[0],
                 gasLimit: 3500000,
             });
             console.log(tx);
             await tx.wait();
         }
-        catch(error){
+        catch (error) {
             console.log(error);
         }
     }
 
     return <div>
-
-        <button onClick={invest}>
-            Invest
-        </button>
-
+        <p>
+            <button onClick={invest}>
+                Invest
+            </button>
+        </p>
+        <p>
+            <button onClick={investLocal}>
+                Invest Local
+            </button>
+        </p>
+        <p>
+            <button onClick={getMyInvestmentsLocal}>
+                Get My Investments Local 
+            </button>
+        </p>
+        <p>
+            <button onClick={getInvestDataLocal}>
+                Get Invest Data Local (0)
+            </button>
+        </p>
+        <p>
+            <button onClick={getPoolDataDataLocal}>
+                Get Pool Data Local
+            </button>
+        </p>
         <p>
             <button onClick={refund}>
                 Refund

@@ -13,7 +13,7 @@
     "start": "next start",
     "lint": "next lint"
   },
-  "keywords": [],
+  "keywords": [], 
   "author": "",
   "license": "ISC",
   "dependencies": {
