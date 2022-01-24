@@ -4,7 +4,7 @@ import Investment from "../../build/contracts/Investment.json";
 import TestInvestment from "../../build/contracts/TestInvestment.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = '0xd884eaBF0A542EDb2304A9799924180a59D5CEFf';
+const contractAddress = '0x47233686dB929058319be24A9f1d85B884CF1Ad7';
 const tokenAddress = '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270';
 function HomePage() {
 
@@ -47,7 +47,7 @@ function HomePage() {
 
     const investLocal = async (e) => {
         try {
-           // const web3Modal = new Web3Modal();
+            // const web3Modal = new Web3Modal();
             //const connection = await web3Modal.connect();
             const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');
             const accounts = await provider.listAccounts();
@@ -73,7 +73,7 @@ function HomePage() {
 
     const getMyInvestmentsLocal = async (e) => {
         try {
-           // const web3Modal = new Web3Modal();
+            // const web3Modal = new Web3Modal();
             //const connection = await web3Modal.connect();
             const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');
             const signer = provider.getSigner();
@@ -107,6 +107,23 @@ function HomePage() {
         }
     }
 
+    const rebalanceLocal = async (e) => {
+        try {
+            const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');
+            const signer = provider.getSigner();
+            const contract = new ethers.Contract(contractAddress,
+                TestInvestment.abi, signer);
+            const result = await contract.rebalance('0x5A22204Da599a931f0F8d5bC25D56f91eBFa1050', 0,
+                {
+                    gasLimit: 3500000,
+                });
+            console.log(result);
+        }
+        catch (error) {
+            console.log(error);
+        }
+    }
+
     const getPoolDataDataLocal = async (e) => {
         try {
             const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:7545');
@@ -120,7 +137,7 @@ function HomePage() {
             console.log(error);
         }
     }
-    
+
 
 
     const refund = async (e) => {
@@ -158,12 +175,17 @@ function HomePage() {
         </p>
         <p>
             <button onClick={getMyInvestmentsLocal}>
-                Get My Investments Local 
+                Get My Investments Local
             </button>
         </p>
         <p>
             <button onClick={getInvestDataLocal}>
                 Get Invest Data Local (0)
+            </button>
+        </p>
+        <p>
+            <button onClick={rebalanceLocal}>
+                Rebalance Local
             </button>
         </p>
         <p>

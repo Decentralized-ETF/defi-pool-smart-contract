@@ -93,36 +93,30 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
 
     function rebalance(
         address user,
-        uint256 investmentId,
-        avaxPercent,
-        wbtcPercent,
-        wethPercent
+        uint256 investmentId
     ) external {
         require(investmentId >= 0, "please specify a valid investment Id");
         require(
             investmentDataByUser[user][investmentId].rebalanceEnabled == true,
             "rebalance function is not enabled for this investment"
         );
-        require(
-            (avaxPercent + wbtcPercent + wethPercent) == 100,
-            "invalid rebalance percents"
-        );
+      
         uint256 maticForSwap = investmentDataByUser[user][investmentId]
             .wethBalance +
             investmentDataByUser[user][investmentId].avaxBalance +
             investmentDataByUser[user][investmentId].wbtcBalance;
 
-        uint256 swapValueAVAX = (maticForSwap * avaxPercent) / 100;
-        uint256 swapValueWBTC = (maticForSwap * wbtcPercent) / 100;
-        uint256 swapValueWETH = (maticForSwap * wethPercent) / 100;
+        uint256 swapValueAVAX = (maticForSwap * 50) / 100;
+        uint256 swapValueWBTC = (maticForSwap * 25) / 100;
+        uint256 swapValueWETH = (maticForSwap * 25) / 100;
 
         investmentDataByUser[user][investmentId].wethBalance= swapValueWETH;
         investmentDataByUser[user][investmentId].avaxBalance= swapValueAVAX;
         investmentDataByUser[user][investmentId].wbtcBalance= swapValueWBTC;
 
-        investmentDataByUser[user][investmentId].wethPercent= wethPercent;
-        investmentDataByUser[user][investmentId].avaxPercent= avaxPercent;
-        investmentDataByUser[user][investmentId].wbtcPercent= wbtcPercent;
+        investmentDataByUser[user][investmentId].wethPercent= 25;
+        investmentDataByUser[user][investmentId].avaxPercent= 50;
+        investmentDataByUser[user][investmentId].wbtcPercent= 25;
 
         emit Invested(user, investmentId);
     }
