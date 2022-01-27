@@ -13,67 +13,88 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
     struct InvestmentData {
         uint256 maticReceived;
         uint256 maticForSwap;
-        uint256 wethBalance;
-        uint256 wethPercent;
-        uint256 avaxBalance;
-        uint256 avaxPercent;
-        uint256 wbtcBalance;
-        uint256 wbtcPercent;
+        uint256 token0Balance;
+        uint256 token1Balance;
+        uint256 token2Balance;
         bool rebalanceEnabled;
     }
 
     mapping(address => InvestmentData[]) private investmentDataByUser;
 
-    event Invested(address indexed user, uint256 maticAmount);
+    event Invested(
+        address indexed user,
+        uint256 maticAmount,
+        uint256 token0Balance,
+        uint256 token1Balance,
+        uint256 token2Balance
+    );
 
     event UnInvested(address indexed user, uint256 maticAmount);
 
-    event Rebalanced(address indexed user, uint256 investmentId);
+    event Rebalanced(
+        address indexed user,
+        uint256 investmentId,
+        uint256 token0Balance,
+        uint256 token1Balance,
+        uint256 token2Balance
+    );
 
     event Received(address sender, uint256 amount);
 
     uint256 private totalMaticReceived = 0;
-    uint256 private totalAVAXInPool = 0;
-    uint256 private totalMATICSwappedAVAX = 0;
-    uint256 private totalWETHInPool = 0;
-    uint256 private totalMATICSwappedWETH = 0;
-    uint256 private totalWBTCInPool = 0;
-    uint256 private totalMATICSwappedWBTC = 0;
+    uint256 private totalToken0InPool = 0;
+    uint256 private totalMATICSwappedToken0 = 0;
+    uint256 private totalToken1InPool = 0;
+    uint256 private totalMATICSwappedToken1 = 0;
+    uint256 private totalToken2InPool = 0;
+    uint256 private totalMATICSwappedToken2 = 0;
 
     struct PoolData {
         uint256 totalMaticReceived;
-        uint256 totalAVAXInPool;
-        uint256 totalMATICSwappedAVAX;
-        uint256 totalWETHInPool;
-        uint256 totalMATICSwappedWETH;
-        uint256 totalWBTCInPool;
-        uint256 totalMATICSwappedWBTC;
+        uint256 totalToken0InPool;
+        uint256 totalMATICSwappedToken0;
+        uint256 totalToken1InPool;
+        uint256 totalMATICSwappedToken1;
+        uint256 totalToken2InPool;
+        uint256 totalMATICSwappedToken2;
     }
 
-    constructor() public Ownable() {}
+    address[] poolTokens;
+    uint256[] poolTokenPercentages;
+
+    constructor(
+        address[] memory _poolTokens,
+        uint256[] memory _poolTokenPercentages
+    ) public Ownable() {
+        poolTokens = _poolTokens;
+        _poolTokenPercentages = poolTokenPercentages;
+    }
 
     function initInvestment() external payable whenNotPaused {
         require(msg.value > 0, "send matic");
 
-        uint256 swapValueAVAX = (msg.value * 20) / 100;
-        uint256 swapValueWBTC = (msg.value * 40) / 100;
-        uint256 swapValueWETH = (msg.value * 40) / 100;
+        uint256 swapValueToken0 = (msg.value * poolTokenPercentages[0]) / 100;
+        uint256 swapValueToken1 = (msg.value * poolTokenPercentages[1]) / 100;
+        uint256 swapValueToken2 = (msg.value * poolTokenPercentages[2]) / 100;
 
         investmentDataByUser[msg.sender].push(
             InvestmentData({
                 maticReceived: msg.value,
                 maticForSwap: 0,
-                wethBalance: swapValueWETH,
-                wethPercent: 40,
-                avaxBalance: swapValueAVAX,
-                avaxPercent: 20,
-                wbtcBalance: swapValueWBTC,
-                wbtcPercent: 40,
+                token0Balance: swapValueToken0,
+                token1Balance: swapValueToken1,
+                token2Balance: swapValueToken2,
                 rebalanceEnabled: true
             })
         );
 
-        emit Invested(msg.sender, msg.value);
+        emit Invested(
+            msg.sender,
+            msg.value,
+            swapValueToken0,
+            swapValueToken1,
+            swapValueToken2
+        );
     }
 
     function finishInvestment(uint256 investmentId) external {
@@ -91,34 +112,27 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
         return investmentDataByUser[msg.sender][investmentId];
     }
 
-    function rebalance(
-        address user,
-        uint256 investmentId
-    ) external {
+    function rebalance(address user, uint256 investmentId) external {
         require(investmentId >= 0, "please specify a valid investment Id");
         require(
             investmentDataByUser[user][investmentId].rebalanceEnabled == true,
             "rebalance function is not enabled for this investment"
         );
-      
+
         uint256 maticForSwap = investmentDataByUser[user][investmentId]
-            .wethBalance +
-            investmentDataByUser[user][investmentId].avaxBalance +
-            investmentDataByUser[user][investmentId].wbtcBalance;
+            .token0Balance +
+            investmentDataByUser[user][investmentId].token1Balance +
+            investmentDataByUser[user][investmentId].token2Balance;
 
-        uint256 swapValueAVAX = (maticForSwap * 50) / 100;
-        uint256 swapValueWBTC = (maticForSwap * 25) / 100;
-        uint256 swapValueWETH = (maticForSwap * 25) / 100;
+        uint256 swapValueToken0 = (maticForSwap * poolTokenPercentages[0]) / 100;
+        uint256 swapValueToken1 = (maticForSwap * poolTokenPercentages[1]) / 100;
+        uint256 swapValueToken2 = (maticForSwap * poolTokenPercentages[2]) / 100;
 
-        investmentDataByUser[user][investmentId].wethBalance= swapValueWETH;
-        investmentDataByUser[user][investmentId].avaxBalance= swapValueAVAX;
-        investmentDataByUser[user][investmentId].wbtcBalance= swapValueWBTC;
+        investmentDataByUser[user][investmentId].token0Balance = swapValueToken0;
+        investmentDataByUser[user][investmentId].token1Balance = swapValueToken1;
+        investmentDataByUser[user][investmentId].token2Balance = swapValueToken2;
 
-        investmentDataByUser[user][investmentId].wethPercent= 25;
-        investmentDataByUser[user][investmentId].avaxPercent= 50;
-        investmentDataByUser[user][investmentId].wbtcPercent= 25;
-
-        emit Invested(user, investmentId);
+        emit Rebalanced(user, investmentId, swapValueToken0, swapValueToken1, swapValueToken2);
     }
 
     function getMyInvestments()
@@ -139,12 +153,12 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
     {
         PoolData memory pooData = PoolData({
             totalMaticReceived: totalMaticReceived,
-            totalAVAXInPool: totalAVAXInPool,
-            totalWETHInPool: totalWETHInPool,
-            totalWBTCInPool: totalWBTCInPool,
-            totalMATICSwappedAVAX: totalMATICSwappedAVAX,
-            totalMATICSwappedWETH: totalMATICSwappedWETH,
-            totalMATICSwappedWBTC: totalMATICSwappedWBTC
+            totalToken0InPool: totalToken0InPool,
+            totalToken1InPool: totalToken1InPool,
+            totalToken2InPool: totalToken2InPool,
+            totalMATICSwappedToken0: totalMATICSwappedToken0,
+            totalMATICSwappedToken1: totalMATICSwappedToken1,
+            totalMATICSwappedToken2: totalMATICSwappedToken2
         });
         return pooData;
     }
