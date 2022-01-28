@@ -4,7 +4,7 @@ import Investment from "../../build/contracts/Investment.json";
 import TestInvestment from "../../build/contracts/TestInvestment.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = '0x47233686dB929058319be24A9f1d85B884CF1Ad7';
+const contractAddress = '0xBb56aE937D0d2617A16771cB0dD24128D43DD756';
 const tokenAddress = '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270';
 function HomePage() {
 
