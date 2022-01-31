@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import TestInvestment from "../../build/contracts/TestInvestment.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = '0xd8fc7E2526bB9F7E95A3EA4157cb8211fc72e002';
+const contractAddress = '0xeDe20d657E4472EfEBC7033cBa87f79a0E1926ba';
 const tokenAddress = '0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889';
 function HomePage() {
 

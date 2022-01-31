@@ -68,17 +68,15 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
 
     uint24 fee = 3000;
 
-    address UNISWAP_ROUTER_CONTRACT_ADDRESS =
-        0xE592427A0AEce92De3Edee1F18E0157C05861564;
-
     address  wMaticTokenAddress;
 
     constructor(
+        address _swapRouterContractAddress,
         address  _wMaticTokenAddress,
         address[] memory _poolTokens,
         uint24[] memory _poolTokenPercentages
     ) public Ownable() {
-        swapRouter = ISwapRouter(UNISWAP_ROUTER_CONTRACT_ADDRESS);
+        swapRouter = ISwapRouter(_swapRouterContractAddress);
         poolTokens = _poolTokens;
         poolTokenPercentages = _poolTokenPercentages;
         wMaticTokenAddress = _wMaticTokenAddress;
@@ -174,6 +172,10 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
 
     function finishInvestment(uint256 investmentId) external {
         require(investmentId >= 0, "please specify a valid investment Id");
+    }
+
+    function setPoolTokensDistributions(uint24[] memory poolDistributions) external {
+        poolTokenPercentages = poolDistributions;
     }
 
     function getPoolTokens()
