@@ -1,7 +1,9 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity >=0.6.12;
+pragma solidity >=0.7.6;
 pragma experimental ABIEncoderV2;
 
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -60,30 +62,103 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
     }
 
     address[] poolTokens;
-    uint256[] poolTokenPercentages;
+    uint24[] poolTokenPercentages;
+
+    ISwapRouter public immutable swapRouter;
+
+    uint24 fee = 3000;
+
+    address UNISWAP_ROUTER_CONTRACT_ADDRESS =
+        0xE592427A0AEce92De3Edee1F18E0157C05861564;
+
+    address  wMaticTokenAddress;
 
     constructor(
+        address  _wMaticTokenAddress,
         address[] memory _poolTokens,
-        uint256[] memory _poolTokenPercentages
+        uint24[] memory _poolTokenPercentages
     ) public Ownable() {
+        swapRouter = ISwapRouter(UNISWAP_ROUTER_CONTRACT_ADDRESS);
         poolTokens = _poolTokens;
-        _poolTokenPercentages = poolTokenPercentages;
+        poolTokenPercentages = _poolTokenPercentages;
+        wMaticTokenAddress = _wMaticTokenAddress;
     }
 
     function initInvestment() external payable whenNotPaused {
         require(msg.value > 0, "send matic");
 
-        uint256 swapValueToken0 = (msg.value * poolTokenPercentages[0]) / 100;
-        uint256 swapValueToken1 = (msg.value * poolTokenPercentages[1]) / 100;
-        uint256 swapValueToken2 = (msg.value * poolTokenPercentages[2]) / 100;
+        uint256 inputAmountForToken0 = (msg.value * poolTokenPercentages[0]) /
+            100;
+        uint256 inputAmountForToken1 = (msg.value * poolTokenPercentages[1]) /
+            100;
+        uint256 inputAmountForToken2 = (msg.value * poolTokenPercentages[2]) /
+            100;
+
+
+        uint256 deadline0 = block.timestamp + 15;
+        address recipient = address(this);
+        uint256 amountOutMinimum = 0;
+        uint160 sqrtPriceLimitX96 = 0;
+
+        ISwapRouter.ExactInputSingleParams
+            memory paramsForSwapToToken0 = ISwapRouter.ExactInputSingleParams(
+                wMaticTokenAddress,
+                poolTokens[0],
+                fee,
+                recipient,
+                deadline0,
+                inputAmountForToken0,
+                amountOutMinimum,
+                sqrtPriceLimitX96
+            );
+
+        uint256 outputAmountForToken0 = swapRouter.exactInputSingle{
+            value: inputAmountForToken0
+        }(paramsForSwapToToken0);
+
+
+        uint256 deadline1 = block.timestamp + 30;
+
+        ISwapRouter.ExactInputSingleParams
+            memory paramsForSwapToToken1 = ISwapRouter.ExactInputSingleParams(
+                wMaticTokenAddress,
+                poolTokens[1],
+                fee,
+                recipient,
+                deadline1,
+                inputAmountForToken1,
+                amountOutMinimum,
+                sqrtPriceLimitX96
+            );
+
+        uint256 outputAmountForToken1 = swapRouter.exactInputSingle{
+            value: inputAmountForToken1
+        }(paramsForSwapToToken1);
+
+        uint256 deadline2 = block.timestamp + 45;
+        ISwapRouter.ExactInputSingleParams
+            memory paramsForSwapToToken2 = ISwapRouter.ExactInputSingleParams(
+                wMaticTokenAddress,
+                poolTokens[2],
+                fee,
+                recipient,
+                deadline2,
+                inputAmountForToken2,
+                amountOutMinimum,
+                sqrtPriceLimitX96
+            );
+
+        uint256 outputAmountForToken2 = swapRouter.exactInputSingle{
+            value: inputAmountForToken2
+        }(paramsForSwapToToken2);
 
         investmentDataByUser[msg.sender].push(
             InvestmentData({
                 maticReceived: msg.value,
                 maticForSwap: 0,
-                token0Balance: swapValueToken0,
-                token1Balance: swapValueToken1,
-                token2Balance: swapValueToken2,
+                token0Balance: outputAmountForToken0,
+                token1Balance: outputAmountForToken1,
+                token2Balance: outputAmountForToken2,
                 rebalanceEnabled: true
             })
         );
@@ -91,15 +166,34 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
         emit Invested(
             msg.sender,
             msg.value,
-            swapValueToken0,
-            swapValueToken1,
-            swapValueToken2
+            outputAmountForToken0,
+            outputAmountForToken1,
+            outputAmountForToken2
         );
     }
 
     function finishInvestment(uint256 investmentId) external {
         require(investmentId >= 0, "please specify a valid investment Id");
     }
+
+    function getPoolTokens()
+        public
+        view
+        virtual
+        returns (address[] memory)
+    {
+        return poolTokens;
+    }
+
+    function getPoolTokensDistributions()
+        public
+        view
+        virtual
+        returns (uint24[] memory)
+    {
+        return poolTokenPercentages;
+    }
+
 
     function getMyInvestment(uint256 investmentId)
         public
@@ -124,15 +218,27 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
             investmentDataByUser[user][investmentId].token1Balance +
             investmentDataByUser[user][investmentId].token2Balance;
 
-        uint256 swapValueToken0 = (maticForSwap * poolTokenPercentages[0]) / 100;
-        uint256 swapValueToken1 = (maticForSwap * poolTokenPercentages[1]) / 100;
-        uint256 swapValueToken2 = (maticForSwap * poolTokenPercentages[2]) / 100;
+        uint256 swapValueToken0 = (maticForSwap * poolTokenPercentages[0]) /
+            100;
+        uint256 swapValueToken1 = (maticForSwap * poolTokenPercentages[1]) /
+            100;
+        uint256 swapValueToken2 = (maticForSwap * poolTokenPercentages[2]) /
+            100;
 
-        investmentDataByUser[user][investmentId].token0Balance = swapValueToken0;
-        investmentDataByUser[user][investmentId].token1Balance = swapValueToken1;
-        investmentDataByUser[user][investmentId].token2Balance = swapValueToken2;
+        investmentDataByUser[user][investmentId]
+            .token0Balance = swapValueToken0;
+        investmentDataByUser[user][investmentId]
+            .token1Balance = swapValueToken1;
+        investmentDataByUser[user][investmentId]
+            .token2Balance = swapValueToken2;
 
-        emit Rebalanced(user, investmentId, swapValueToken0, swapValueToken1, swapValueToken2);
+        emit Rebalanced(
+            user,
+            investmentId,
+            swapValueToken0,
+            swapValueToken1,
+            swapValueToken2
+        );
     }
 
     function getMyInvestments()

@@ -1,11 +1,10 @@
 import Web3Modal from "web3modal";
 import { ethers } from "ethers";
-import Investment from "../../build/contracts/Investment.json";
 import TestInvestment from "../../build/contracts/TestInvestment.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = '0xBb56aE937D0d2617A16771cB0dD24128D43DD756';
-const tokenAddress = '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270';
+const contractAddress = '0xd8fc7E2526bB9F7E95A3EA4157cb8211fc72e002';
+const tokenAddress = '0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889';
 function HomePage() {
 
     const invest = async (e) => {
@@ -16,8 +15,22 @@ function HomePage() {
             const accounts = await provider.listAccounts();
             const signer = provider.getSigner();
             const contract = new ethers.Contract(contractAddress,
-                Investment.abi, signer);
-            const value = ethers.utils.parseUnits('0.2', 'ether')
+                TestInvestment.abi, signer);
+
+
+            const result1 = await contract.getPoolTokens(
+                {
+                    gasLimit: 3500000,
+                });
+            console.log(result1);
+
+            const result2 = await contract.getPoolTokensDistributions(
+                {
+                    gasLimit: 3500000,
+                });
+            console.log(result2);
+
+            const value = ethers.utils.parseUnits('0.01', 'ether')
             console.log(value.toString());
 
             const tokenContract = new ethers.Contract(tokenAddress,
@@ -148,7 +161,7 @@ function HomePage() {
             const accounts = await provider.listAccounts();
             const signer = provider.getSigner();
             const contract = new ethers.Contract(contractAddress,
-                Investment.abi, signer);
+                TestInvestment.abi, signer);
 
             const tx = await contract.finishInvestment(1, {
                 from: accounts[0],

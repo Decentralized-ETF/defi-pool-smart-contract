@@ -7,5 +7,6 @@ module.exports = async deployer => {
   ];
   const poolTokenPercentages = [10,25,65];
 
-  deployer.deploy(TestInvestment,poolTokens,poolTokenPercentages);
+  const wMaticTokenAddress = '0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889';
+  deployer.deploy(TestInvestment,wMaticTokenAddress,poolTokens,poolTokenPercentages);
 }
