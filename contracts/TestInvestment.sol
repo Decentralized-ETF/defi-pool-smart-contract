@@ -14,7 +14,6 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
     struct InvestmentData {
         uint256 maticReceived;
-        uint256 maticForSwap;
         uint256 token0Balance;
         uint256 token1Balance;
         uint256 token2Balance;
@@ -32,11 +31,15 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
         uint256 token2Balance
     );
 
-    event UnInvested(address indexed user, uint256 maticAmount);
+    event UnInvested(
+        address indexed user,
+        uint256 maticAmount,
+        uint16 investmentId
+    );
 
     event Rebalanced(
         address indexed user,
-        //uint256 investmentId,
+        uint16 investmentId,
         uint256 token0Balance,
         uint256 token1Balance,
         uint256 token2Balance
@@ -93,66 +96,28 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
         uint256 inputAmountForToken2 = (msg.value * poolTokenPercentages[2]) /
             100;
 
-        uint256 deadline0 = block.timestamp + 15;
-        address recipient = address(this);
-        uint256 amountOutMinimum = 0;
-        uint160 sqrtPriceLimitX96 = 0;
-
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapToToken0 = ISwapRouter.ExactInputSingleParams(
-                wMaticTokenAddress,
-                poolTokens[0],
-                fee,
-                recipient,
-                deadline0,
-                inputAmountForToken0,
-                amountOutMinimum,
-                sqrtPriceLimitX96
-            );
-
-        uint256 outputAmountForToken0 = swapRouter.exactInputSingle{
-            value: inputAmountForToken0
-        }(paramsForSwapToToken0);
-
-        uint256 deadline1 = block.timestamp + 30;
-
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapToToken1 = ISwapRouter.ExactInputSingleParams(
-                wMaticTokenAddress,
-                poolTokens[1],
-                fee,
-                recipient,
-                deadline1,
-                inputAmountForToken1,
-                amountOutMinimum,
-                sqrtPriceLimitX96
-            );
-
-        uint256 outputAmountForToken1 = swapRouter.exactInputSingle{
-            value: inputAmountForToken1
-        }(paramsForSwapToToken1);
-
-        uint256 deadline2 = block.timestamp + 45;
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapToToken2 = ISwapRouter.ExactInputSingleParams(
-                wMaticTokenAddress,
-                poolTokens[2],
-                fee,
-                recipient,
-                deadline2,
-                inputAmountForToken2,
-                amountOutMinimum,
-                sqrtPriceLimitX96
-            );
-
-        uint256 outputAmountForToken2 = swapRouter.exactInputSingle{
-            value: inputAmountForToken2
-        }(paramsForSwapToToken2);
+        uint256 outputAmountForToken0 = _swap(
+            wMaticTokenAddress,
+            poolTokens[0],
+            block.timestamp + 15,
+            inputAmountForToken0
+        );
+        uint256 outputAmountForToken1 = _swap(
+            wMaticTokenAddress,
+            poolTokens[1],
+            block.timestamp + 30,
+            inputAmountForToken1
+        );
+        uint256 outputAmountForToken2 = _swap(
+            wMaticTokenAddress,
+            poolTokens[2],
+            block.timestamp + 45,
+            inputAmountForToken2
+        );
 
         investmentDataByUser[msg.sender].push(
             InvestmentData({
                 maticReceived: msg.value,
-                maticForSwap: 0,
                 token0Balance: outputAmountForToken0,
                 token1Balance: outputAmountForToken1,
                 token2Balance: outputAmountForToken2,
@@ -170,7 +135,7 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
         );
     }
 
-    function finishInvestment(uint256 investmentId) external whenNotPaused {
+    function finishInvestment(uint16 investmentId) external whenNotPaused {
         require(investmentId >= 0, "please specify a valid investment Id");
         require(
             investmentDataByUser[msg.sender][investmentId].active == true,
@@ -189,57 +154,27 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
             investmentId
         ].token2Balance;
 
-        uint256 deadline0 = block.timestamp + 15;
 
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapFromToken0 = ISwapRouter.ExactInputSingleParams(
-                poolTokens[0],
-                wMaticTokenAddress,
-                fee,
-                address(this),
-                deadline0,
-                inputAmountFromToken0,
-                0,
-                0
-            );
+         uint256 outputAmountFromToken0 = _swap(
+            poolTokens[0],
+            wMaticTokenAddress,
+            block.timestamp + 15,
+            inputAmountFromToken0
+        );
 
-        uint256 outputAmountFromToken0 = swapRouter.exactInputSingle{
-            value: inputAmountFromToken0
-        }(paramsForSwapFromToken0);
+         uint256 outputAmountFromToken1 = _swap(
+            poolTokens[1],
+            wMaticTokenAddress,
+            block.timestamp +30,
+            inputAmountFromToken1
+        );
 
-        uint256 deadline1 = block.timestamp + 30;
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapFromToken1 = ISwapRouter.ExactInputSingleParams(
-                poolTokens[1],
-                wMaticTokenAddress,
-                fee,
-                address(this),
-                deadline1,
-                inputAmountFromToken1,
-                0,
-                0
-            );
-
-        uint256 outputAmountFromToken1 = swapRouter.exactInputSingle{
-            value: inputAmountFromToken1
-        }(paramsForSwapFromToken1);
-
-        uint256 deadline2 = block.timestamp + 30;
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapFromToken2 = ISwapRouter.ExactInputSingleParams(
-                poolTokens[2],
-                wMaticTokenAddress,
-                fee,
-                address(this),
-                deadline2,
-                inputAmountFromToken2,
-                0,
-                0
-            );
-
-        uint256 outputAmountFromToken2 = swapRouter.exactInputSingle{
-            value: inputAmountFromToken2
-        }(paramsForSwapFromToken2);
+         uint256 outputAmountFromToken2 = _swap(
+            poolTokens[2],
+            wMaticTokenAddress,
+            block.timestamp + 45,
+            inputAmountFromToken2
+        );
 
         uint256 returnedMatic = outputAmountFromToken0 +
             outputAmountFromToken1 +
@@ -247,7 +182,7 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
         Address.sendValue(payable(msg.sender), returnedMatic);
 
         investmentDataByUser[msg.sender][investmentId].active = false;
-        emit UnInvested(msg.sender, returnedMatic);
+        emit UnInvested(msg.sender, returnedMatic,investmentId);
     }
 
     function setPoolTokensDistributions(uint24[] memory poolDistributions)
@@ -255,6 +190,22 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
         onlyOwner
     {
         poolTokenPercentages = poolDistributions;
+    }
+
+    function setFee(uint24 _fee)
+        external
+        onlyOwner
+    {
+        fee = _fee;
+    }
+
+    function getFee()
+        public
+        view
+        virtual
+        returns (uint24)
+    {
+        return fee;
     }
 
     function getPoolTokens() public view virtual returns (address[] memory) {
@@ -270,7 +221,7 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
         return poolTokenPercentages;
     }
 
-    function getMyInvestment(uint256 investmentId)
+    function getMyInvestment(uint16 investmentId)
         public
         view
         virtual
@@ -281,7 +232,7 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
         return investmentDataByUser[msg.sender][investmentId];
     }
 
-    function rebalance(uint256 investmentId) external whenNotPaused {
+    function rebalance(uint16 investmentId) external whenNotPaused {
         require(investmentId >= 0, "please specify a valid investment Id");
         InvestmentData memory data = investmentDataByUser[msg.sender][
             investmentId
@@ -292,107 +243,50 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
         );
 
         //First we should swap all tokens to matic
-
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapFromToken0 = ISwapRouter.ExactInputSingleParams(
-                poolTokens[0],
-                wMaticTokenAddress,
-                fee,
-                address(this),
-                block.timestamp + 15,
-                data.token0Balance,
-                0,
-                0
-            );
-
-        uint256 outputAmountFromToken0 = swapRouter.exactInputSingle{
-            value: data.token0Balance
-        }(paramsForSwapFromToken0);
-
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapFromToken1 = ISwapRouter.ExactInputSingleParams(
-                poolTokens[1],
-                wMaticTokenAddress,
-                fee,
-                address(this),
-                block.timestamp + 30,
-                data.token1Balance,
-                0,
-                0
-            );
-
-        uint256 outputAmountFromToken1 = swapRouter.exactInputSingle{
-            value: data.token1Balance
-        }(paramsForSwapFromToken1);
-
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapFromToken2 = ISwapRouter.ExactInputSingleParams(
-                poolTokens[2],
-                wMaticTokenAddress,
-                fee,
-                address(this),
-                block.timestamp + 30,
-                data.token2Balance,
-                0,
-                0
-            );
-
-        uint256 outputAmountFromToken2 = swapRouter.exactInputSingle{
-            value: data.token2Balance
-        }(paramsForSwapFromToken2);
+        uint256 outputAmountFromToken0 = _swap(
+            poolTokens[0],
+            wMaticTokenAddress,
+            block.timestamp + 15,
+            data.token0Balance
+        );
+        uint256 outputAmountFromToken1 = _swap(
+            poolTokens[1],
+            wMaticTokenAddress,
+            block.timestamp + 30,
+            data.token1Balance
+        );
+        uint256 outputAmountFromToken2 = _swap(
+            poolTokens[2],
+            wMaticTokenAddress,
+            block.timestamp + 45,
+            data.token2Balance
+        );
 
         // Second Apply new distributions
         uint256 allSwappedMatic = outputAmountFromToken0 +
             outputAmountFromToken1 +
             outputAmountFromToken2;
 
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapToToken0 = ISwapRouter.ExactInputSingleParams(
-                wMaticTokenAddress,
-                poolTokens[0],
-                fee,
-                address(this),
-                block.timestamp + 15,
-                (allSwappedMatic * poolTokenPercentages[0]) / 100,
-                0,
-                0
-            );
+        uint256 outputAmountForToken0 = _swap(
+            wMaticTokenAddress,
+            poolTokens[0],
+            block.timestamp + 15,
+            (allSwappedMatic * poolTokenPercentages[0]) / 100
+        );
 
-        uint256 outputAmountForToken0 = swapRouter.exactInputSingle{
-            value: (allSwappedMatic * poolTokenPercentages[0]) / 100
-        }(paramsForSwapToToken0);
+        uint256 outputAmountForToken1 = _swap(
+            wMaticTokenAddress,
+            poolTokens[1],
+            block.timestamp + 30,
+            (allSwappedMatic * poolTokenPercentages[1]) / 100
+        );
 
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapToToken1 = ISwapRouter.ExactInputSingleParams(
-                wMaticTokenAddress,
-                poolTokens[1],
-                fee,
-                address(this),
-                block.timestamp + 30,
-                (allSwappedMatic * poolTokenPercentages[1]) / 100,
-                0,
-                0
-            );
-
-        uint256 outputAmountForToken1 = swapRouter.exactInputSingle{
-            value: (allSwappedMatic * poolTokenPercentages[1]) / 100
-        }(paramsForSwapToToken1);
-
-        ISwapRouter.ExactInputSingleParams
-            memory paramsForSwapToToken2 = ISwapRouter.ExactInputSingleParams(
-                wMaticTokenAddress,
-                poolTokens[2],
-                fee,
-                address(this),
-                block.timestamp + 45,
-                (allSwappedMatic * poolTokenPercentages[2]) / 100,
-                0,
-                0
-            );
-
-        uint256 outputAmountForToken2 = swapRouter.exactInputSingle{
-            value: (allSwappedMatic * poolTokenPercentages[2]) / 100
-        }(paramsForSwapToToken2);
+        uint256 outputAmountForToken2 = _swap(
+            wMaticTokenAddress,
+            poolTokens[2],
+            block.timestamp + 45,
+            (allSwappedMatic * poolTokenPercentages[2]) / 100
+        );
 
         data.token0Balance = outputAmountForToken0;
         data.token1Balance = outputAmountForToken1;
@@ -400,7 +294,7 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
 
         emit Rebalanced(
             msg.sender,
-            //investmentId,
+            investmentId,
             outputAmountForToken0,
             outputAmountForToken1,
             outputAmountForToken2
@@ -437,5 +331,26 @@ contract TestInvestment is ReentrancyGuard, Ownable, Pausable {
 
     receive() external payable {
         emit Received(msg.sender, msg.value);
+    }
+
+    function _swap(
+        address tokenIn,
+        address tokenOut,
+        uint256 timestamp,
+        uint256 amount
+    ) internal returns (uint256) {
+        ISwapRouter.ExactInputSingleParams memory paramsForSwap = ISwapRouter
+            .ExactInputSingleParams(
+                tokenIn,
+                tokenOut,
+                fee,
+                address(this),
+                timestamp,
+                amount,
+                0,
+                0
+            );
+
+        return swapRouter.exactInputSingle{value: amount}(paramsForSwap);
     }
 }
