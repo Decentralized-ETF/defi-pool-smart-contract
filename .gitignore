@@ -1,9 +1,9 @@
-build
-
 node_modules
+.env
+coverage
+coverage.json
+typechain
 
-.secret
-
-.idea
-
-.next
+#Hardhat files
+cache
+artifacts
