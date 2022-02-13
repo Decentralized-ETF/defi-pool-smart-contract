@@ -156,7 +156,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     }
 
     function finishInvestment(uint16 investmentId) external whenNotPaused {
-        require(investmentId >= 0, "please specify a valid investment Id");
+        require(investmentId >= 0, "invalid investment Id");
         require(
             investmentDataByUser[msg.sender][investmentId].active == true,
             "Investment is not active"
@@ -172,11 +172,11 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     }
 
     function rebalance(uint16 investmentId) external whenNotPaused {
-        require(investmentId >= 0, "please specify a valid investment Id");
+        require(investmentId >= 0, "invalid investment Id");
         InvestmentData memory data = investmentDataByUser[msg.sender][investmentId];
         require(
             data.rebalanceEnabled == true,
-            "rebalance function is not enabled for this investment"
+            "rebalancenot not enabled"
         );
         //First we should swap all tokens to matic
         uint256 allSwappedMatic = 0;
@@ -236,24 +236,24 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         return poolTokenPercentages;
     }
 
-    function getMyInvestment(uint16 investmentId)
+    function getInvestment(address investor,uint16 investmentId)
         public
         view
         virtual
         returns (InvestmentData memory)
     {
-        require(investmentId >= 0, "please specify a valid investment Id");
+        require(investmentId >= 0, "invalid investment Id");
 
-        return investmentDataByUser[msg.sender][investmentId];
+        return investmentDataByUser[investor][investmentId];
     }
 
-    function getMyInvestments()
+    function getInvestments(address investor)
         public
         view
         virtual
         returns (InvestmentData[] memory)
     {
-        return investmentDataByUser[msg.sender];
+        return investmentDataByUser[investor];
     }
 
     function getPoolData()
