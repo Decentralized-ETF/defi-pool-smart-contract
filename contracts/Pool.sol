@@ -12,6 +12,9 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 contract Pool is ReentrancyGuard, Ownable, Pausable {
+
+     IERC20 private wmaticToken;
+
     struct InvestmentData {
         uint256 maticReceived;
         uint256[] tokenBalances;
@@ -78,14 +81,15 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         poolTokenPercentages = _poolTokenPercentages;
         wMaticTokenAddress = _wMaticTokenAddress;
         poolSize = uint8(poolTokens.length);
+        wmaticToken = IERC20(_wMaticTokenAddress);
         initBalance();
     }
 
-     receive() external payable {
+    receive() external payable {
         require(msg.value > 0, "send matic");
         this.initInvestment(msg.sender, msg.value);
         emit Received(msg.sender, msg.value);
-     }
+    }
 
     function initBalance() public onlyOwner {
         uint256[] memory _poolTokenBalances = new uint256[](poolSize);
@@ -98,7 +102,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         recievedCurrency = _recievedCurrency;
     }
 
-    function maticToToken(uint256 amount, uint8 i) internal returns(uint256) {
+    function maticToToken(uint256 amount, uint8 i) internal returns (uint256) {
         uint256 inputAmountForToken = (amount * poolTokenPercentages[i]) / 100;
         if (poolTokenPercentages[i] == 0) {
             return 0;
@@ -107,30 +111,39 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             wMaticTokenAddress,
             poolTokens[i],
             (block.timestamp + 15) * (i + 1),
-            inputAmountForToken
+            inputAmountForToken,0
         );
         poolTokenBalances[i] = poolTokenBalances[i] + tokenBalance;
         recievedCurrency[i] = recievedCurrency[i] + inputAmountForToken;
         return tokenBalance;
     }
 
-    function tokensToMatic(uint16 investmentId, uint8 i) internal returns(uint256) {
-        uint256 tokenBalance = investmentDataByUser[msg.sender][investmentId].tokenBalances[i];
+    function tokensToMatic(uint16 investmentId, uint8 i)
+        internal
+        returns (uint256)
+    {
+        uint256 tokenBalance = investmentDataByUser[msg.sender][investmentId]
+            .tokenBalances[i];
         if (tokenBalance == 0) {
             return 0;
         }
+        TransferHelper.safeApprove(poolTokens[i], address(swapRouter), tokenBalance);
         uint256 outputAmountFromToken = _swap(
             poolTokens[i],
             wMaticTokenAddress,
             (block.timestamp + 15) * (i + 1),
-            tokenBalance
+            tokenBalance,1
         );
         investmentDataByUser[msg.sender][investmentId].tokenBalances[i] = 0;
         poolTokenBalances[i] = poolTokenBalances[i] - tokenBalance;
         return outputAmountFromToken;
     }
 
-    function initInvestment(address investor, uint256 amount) external payable whenNotPaused {
+    function initInvestment(address investor, uint256 amount)
+        external
+        payable
+        whenNotPaused
+    {
         uint256[] memory tokenBalances = new uint256[](poolSize);
         totalMaticReceived = totalMaticReceived + amount;
         uint256[] memory _recievedCurrency = recievedCurrency;
@@ -147,12 +160,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
                 active: true
             })
         );
-        emit Invested(
-            investor,
-            amount,
-            tokenBalances,
-            poolTokenPercentages
-        );
+        emit Invested(investor, amount, tokenBalances, poolTokenPercentages);
     }
 
     function finishInvestment(uint16 investmentId) external whenNotPaused {
@@ -166,18 +174,18 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             uint256 matic = tokensToMatic(investmentId, i);
             returnedMatic = returnedMatic + matic;
         }
-        Address.sendValue(payable(msg.sender), returnedMatic);
+        //Address.sendValue(payable(msg.sender), returnedMatic);
+        wmaticToken.transferFrom(address(this), payable(msg.sender), returnedMatic);
         investmentDataByUser[msg.sender][investmentId].active = false;
         emit UnInvested(msg.sender, returnedMatic, investmentId);
     }
 
     function rebalance(uint16 investmentId) external whenNotPaused {
         require(investmentId >= 0, "invalid investment Id");
-        InvestmentData memory data = investmentDataByUser[msg.sender][investmentId];
-        require(
-            data.rebalanceEnabled == true,
-            "rebalancenot not enabled"
-        );
+        InvestmentData memory data = investmentDataByUser[msg.sender][
+            investmentId
+        ];
+        require(data.rebalanceEnabled == true, "rebalancenot not enabled");
         //First we should swap all tokens to matic
         uint256 allSwappedMatic = 0;
         for (uint8 i = 0; i < poolSize; i++) {
@@ -186,7 +194,10 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         }
         //Apply new distribution
         for (uint8 i = 0; i < poolSize; ++i) {
-            uint256 tokenBalance = maticToToken((allSwappedMatic * poolTokenPercentages[i]) / 100, i);
+            uint256 tokenBalance = maticToToken(
+                (allSwappedMatic * poolTokenPercentages[i]) / 100,
+                i
+            );
             poolTokenBalances[i] = poolTokenBalances[i] + tokenBalance;
             data.tokenBalances[i] = data.tokenBalances[i] + tokenBalance;
         }
@@ -207,19 +218,11 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         poolTokenPercentages = poolDistributions;
     }
 
-    function setFee(uint24 _fee)
-        external
-        onlyOwner
-    {
+    function setFee(uint24 _fee) external onlyOwner {
         fee = _fee;
     }
 
-    function getFee()
-        public
-        view
-        virtual
-        returns (uint24)
-    {
+    function getFee() public view virtual returns (uint24) {
         return fee;
     }
 
@@ -236,7 +239,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         return poolTokenPercentages;
     }
 
-    function getInvestment(address investor,uint16 investmentId)
+    function getInvestment(address investor, uint16 investmentId)
         public
         view
         virtual
@@ -278,7 +281,8 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         address tokenIn,
         address tokenOut,
         uint256 timestamp,
-        uint256 amount
+        uint256 amount,
+        uint8 mode
     ) internal returns (uint256) {
         ISwapRouter.ExactInputSingleParams memory paramsForSwap = ISwapRouter
             .ExactInputSingleParams(
@@ -291,7 +295,9 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
                 0,
                 0
             );
-
-        return swapRouter.exactInputSingle{value: amount}(paramsForSwap);
+        if (mode == 0) {
+            return swapRouter.exactInputSingle{value: amount}(paramsForSwap);
+        }
+        return swapRouter.exactInputSingle(paramsForSwap);
     }
 }
