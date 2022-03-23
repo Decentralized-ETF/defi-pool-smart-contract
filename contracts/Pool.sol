@@ -3,6 +3,7 @@ pragma solidity >=0.7.6;
 pragma experimental ABIEncoderV2;
 
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
@@ -13,7 +14,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 
 contract Pool is ReentrancyGuard, Ownable, Pausable {
 
-     IERC20 private wmaticToken;
+    IERC20 private wmaticToken;
 
     struct InvestmentData {
         uint256 maticReceived;
@@ -38,7 +39,9 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     uint24[] public poolTokenPercentages;
     uint256[] public poolTokenBalances;
     uint256[] public recievedCurrency;
+
     ISwapRouter public immutable swapRouter;
+    IQuoter public immutable quoter;
 
     uint24 public fee = 3000;
     uint256 private totalMaticReceived = 0;
@@ -68,6 +71,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
 
     constructor(
         address _swapRouterContractAddress,
+        address _quoterContractAddress,
         address _wMaticTokenAddress,
         address[] memory _poolTokens,
         uint24[] memory _poolTokenPercentages
@@ -77,6 +81,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             "Required to specify percentages for all tokens in token list"
         );
         swapRouter = ISwapRouter(_swapRouterContractAddress);
+        quoter = IQuoter(_quoterContractAddress);
         poolTokens = _poolTokens;
         poolTokenPercentages = _poolTokenPercentages;
         wMaticTokenAddress = _wMaticTokenAddress;
@@ -111,7 +116,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             wMaticTokenAddress,
             poolTokens[i],
             (block.timestamp + 15) * (i + 1),
-            inputAmountForToken,0
+            inputAmountForToken, 0
         );
         poolTokenBalances[i] = poolTokenBalances[i] + tokenBalance;
         recievedCurrency[i] = recievedCurrency[i] + inputAmountForToken;
@@ -119,11 +124,11 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     }
 
     function tokensToMatic(uint16 investmentId, uint8 i)
-        internal
-        returns (uint256)
+    internal
+    returns (uint256)
     {
         uint256 tokenBalance = investmentDataByUser[msg.sender][investmentId]
-            .tokenBalances[i];
+        .tokenBalances[i];
         if (tokenBalance == 0) {
             return 0;
         }
@@ -132,17 +137,48 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             poolTokens[i],
             wMaticTokenAddress,
             (block.timestamp + 15) * (i + 1),
-            tokenBalance,1
+            tokenBalance, 1
         );
         investmentDataByUser[msg.sender][investmentId].tokenBalances[i] = 0;
         poolTokenBalances[i] = poolTokenBalances[i] - tokenBalance;
         return outputAmountFromToken;
     }
 
+    function initSecureInvestment(address investor, uint256 amount, uint256[] memory outputs)
+    external
+    payable
+    whenNotPaused
+    {
+        for (uint8 i = 0; i < poolSize; i++) {
+            uint256 inputAmountForToken = (amount * poolTokenPercentages[i]) / 100;
+            uint256 amountOfToken = _quote(address(wmaticToken), poolTokens[i], inputAmountForToken);
+            require(amountOfToken == outputs[i], "token price changed");
+        }
+
+        uint256[] memory tokenBalances = new uint256[](poolSize);
+        totalMaticReceived = totalMaticReceived + amount;
+        uint256[] memory _recievedCurrency = recievedCurrency;
+        for (uint8 i = 0; i < poolSize; i++) {
+            uint256 tokensReceived = maticToToken(amount, i);
+            tokenBalances[i] = tokensReceived;
+        }
+        recievedCurrency = _recievedCurrency;
+        investmentDataByUser[investor].push(
+            InvestmentData({
+        maticReceived : amount,
+        tokenBalances : tokenBalances,
+        rebalanceEnabled : true,
+        active : true
+        })
+        );
+        emit Invested(investor, amount, tokenBalances, poolTokenPercentages);
+
+    }
+
     function initInvestment(address investor, uint256 amount)
-        external
-        payable
-        whenNotPaused
+    external
+    payable
+    whenNotPaused
     {
         uint256[] memory tokenBalances = new uint256[](poolSize);
         totalMaticReceived = totalMaticReceived + amount;
@@ -154,11 +190,11 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         recievedCurrency = _recievedCurrency;
         investmentDataByUser[investor].push(
             InvestmentData({
-                maticReceived: amount,
-                tokenBalances: tokenBalances,
-                rebalanceEnabled: true,
-                active: true
-            })
+        maticReceived : amount,
+        tokenBalances : tokenBalances,
+        rebalanceEnabled : true,
+        active : true
+        })
         );
         emit Invested(investor, amount, tokenBalances, poolTokenPercentages);
     }
@@ -183,7 +219,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     function rebalance(uint16 investmentId) external whenNotPaused {
         require(investmentId >= 0, "invalid investment Id");
         InvestmentData memory data = investmentDataByUser[msg.sender][
-            investmentId
+        investmentId
         ];
         require(data.rebalanceEnabled == true, "rebalancenot not enabled");
         //First we should swap all tokens to matic
@@ -212,8 +248,8 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     }
 
     function setPoolTokensDistributions(uint24[] memory poolDistributions)
-        external
-        onlyOwner
+    external
+    onlyOwner
     {
         poolTokenPercentages = poolDistributions;
     }
@@ -231,19 +267,19 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     }
 
     function getPoolTokensDistributions()
-        public
-        view
-        virtual
-        returns (uint24[] memory)
+    public
+    view
+    virtual
+    returns (uint24[] memory)
     {
         return poolTokenPercentages;
     }
 
     function getInvestment(address investor, uint16 investmentId)
-        public
-        view
-        virtual
-        returns (InvestmentData memory)
+    public
+    view
+    virtual
+    returns (InvestmentData memory)
     {
         require(investmentId >= 0, "invalid investment Id");
 
@@ -251,30 +287,37 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     }
 
     function getInvestments(address investor)
-        public
-        view
-        virtual
-        returns (InvestmentData[] memory)
+    public
+    view
+    virtual
+    returns (InvestmentData[] memory)
     {
         return investmentDataByUser[investor];
     }
 
     function getPoolData()
-        public
-        view
-        virtual
-        onlyOwner
-        returns (PoolData memory)
+    public
+    view
+    virtual
+    returns (PoolData memory)
     {
         PoolData memory pooData = PoolData({
-            totalMaticReceived: totalMaticReceived,
-            tokenBalances: poolTokenBalances,
-            poolTokens: poolTokens,
-            poolTokenPercentages: poolTokenPercentages,
-            recievedCurrency: recievedCurrency,
-            poolSize: poolSize
+        totalMaticReceived : totalMaticReceived,
+        tokenBalances : poolTokenBalances,
+        poolTokens : poolTokens,
+        poolTokenPercentages : poolTokenPercentages,
+        recievedCurrency : recievedCurrency,
+        poolSize : poolSize
         });
         return pooData;
+    }
+
+    function _quote(
+        address tokenIn,
+        address tokenOut,
+        uint256 amount
+    ) internal returns (uint256) {
+        return quoter.quoteExactInputSingle(tokenIn, tokenOut, fee, amount, 0);
     }
 
     function _swap(
@@ -285,18 +328,18 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         uint8 mode
     ) internal returns (uint256) {
         ISwapRouter.ExactInputSingleParams memory paramsForSwap = ISwapRouter
-            .ExactInputSingleParams(
-                tokenIn,
-                tokenOut,
-                fee,
-                address(this),
-                timestamp,
-                amount,
-                0,
-                0
-            );
+        .ExactInputSingleParams(
+            tokenIn,
+            tokenOut,
+            fee,
+            address(this),
+            timestamp,
+            amount,
+            0,
+            0
+        );
         if (mode == 0) {
-            return swapRouter.exactInputSingle{value: amount}(paramsForSwap);
+            return swapRouter.exactInputSingle{value : amount}(paramsForSwap);
         }
         return swapRouter.exactInputSingle(paramsForSwap);
     }
