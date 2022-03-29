@@ -51,6 +51,8 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     uint8 private poolSize = 0;
 
     address private feeAddress;
+    uint24 private successFee = 0;
+    uint24 private managerFee = 0;
 
     event Invested(
         address indexed user,
@@ -268,6 +270,22 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     onlyOwner
     {
         poolTokenPercentages = poolDistributions;
+    }
+
+    function setSuccessFee(uint24 _successFee) external onlyOwner whenPaused {
+        successFee = _successFee;
+    }
+
+    function getSuccessFee() public view virtual returns (uint24) {
+        return successFee;
+    }
+
+    function setManagerFee(uint24 _managerFee) external onlyOwner whenPaused {
+        managerFee = _managerFee;
+    }
+
+    function getManagerFee() public view virtual returns (uint24) {
+        return managerFee;
     }
 
     function setFee(uint24 _fee) external onlyOwner whenPaused {
