@@ -95,6 +95,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         poolSize = uint8(poolTokens.length);
         wmaticToken = IERC20(_wMaticTokenAddress);
         initBalance();
+        pause();
     }
 
     receive() external payable {
@@ -400,5 +401,13 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             return swapRouter.exactInputSingle{value : amount}(paramsForSwap);
         }
         return swapRouter.exactInputSingle(paramsForSwap);
+    }
+
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
     }
 }
