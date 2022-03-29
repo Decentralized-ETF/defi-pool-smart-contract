@@ -236,7 +236,14 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             uint256 matic = tokensToMatic(investmentId, i);
             returnedMatic = returnedMatic + matic;
         }
-        wmaticToken.transferFrom(address(this), payable(msg.sender), returnedMatic);
+        uint256 finalReturnedMatic = returnedMatic;
+        uint256 maticReceived = investmentDataByUser[msg.sender][investmentId].maticReceived;
+        if(returnedMatic > maticReceived){
+            uint256 theSuccessFee = (returnedMatic * successFee) / 100;
+            finalReturnedMatic = returnedMatic - theSuccessFee;
+            wmaticToken.transferFrom(address(this), payable(feeAddress), theSuccessFee);
+        }
+        wmaticToken.transferFrom(address(this), payable(msg.sender), finalReturnedMatic);
         investmentDataByUser[msg.sender][investmentId].active = false;
         emit UnInvested(msg.sender, returnedMatic, investmentId);
     }
