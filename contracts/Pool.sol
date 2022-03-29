@@ -43,6 +43,9 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     ISwapRouter public immutable swapRouter;
     IQuoter public immutable quoter;
 
+    uint256 private minInvestmentLimit;
+    uint256 private maxInvestmentLimit;
+
     uint24 public fee = 3000;
     uint256 private totalMaticReceived = 0;
     uint8 private poolSize = 0;
@@ -149,11 +152,19 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     payable
     whenNotPaused
     {
+        require(amount >= minInvestmentLimit,"amount is too small");
+        require(amount < maxInvestmentLimit,"amount is too large");
+
+    bool priceChanged = false;
         for (uint8 i = 0; i < poolSize; i++) {
             uint256 inputAmountForToken = (amount * poolTokenPercentages[i]) / 100;
             uint256 amountOfToken = _quote(address(wmaticToken), poolTokens[i], inputAmountForToken);
-            require(amountOfToken == outputs[i], "token price changed");
+            if(amountOfToken != outputs[i]){
+                priceChanged = true;
+                break;
+            }
         }
+        require(priceChanged == false, "token price changed");
 
         uint256[] memory tokenBalances = new uint256[](poolSize);
         totalMaticReceived = totalMaticReceived + amount;
@@ -180,6 +191,9 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     payable
     whenNotPaused
     {
+        require(amount >= minInvestmentLimit,"amount is too small");
+        require(amount < maxInvestmentLimit,"amount is too large");
+
         uint256[] memory tokenBalances = new uint256[](poolSize);
         totalMaticReceived = totalMaticReceived + amount;
         uint256[] memory _recievedCurrency = recievedCurrency;
@@ -260,6 +274,22 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
 
     function getFee() public view virtual returns (uint24) {
         return fee;
+    }
+
+    function setMinInvestmentLimit(uint256 _minInvestmentLimit) external onlyOwner {
+        minInvestmentLimit = _minInvestmentLimit;
+    }
+
+    function getMinInvestmentLimit() public view virtual returns (uint256) {
+        return minInvestmentLimit;
+    }
+
+    function setMaxInvestmentLimit(uint256 _maxInvestmentLimit) external onlyOwner {
+        maxInvestmentLimit = _maxInvestmentLimit;
+    }
+
+    function getMaxInvestmentLimit() public view virtual returns (uint256) {
+        return maxInvestmentLimit;
     }
 
     function getPoolTokens() public view virtual returns (address[] memory) {

@@ -4,7 +4,7 @@ import Pool from "../../artifacts/contracts/Pool.sol/Pool.json";
 import Quoter from "@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = "0x50ce6b474B0063B948e6B8419f820C1956dd5985";
+const contractAddress = "0x20439826fc1700834C916Ebe3fdcEA22106bE86A";
 const tokenAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270";
 const quoterAddress = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"; // quoter
 
@@ -41,7 +41,7 @@ function HomePage() {
           );
         outputs.push(quotedAmountOut);
       }
-console.log(outputs);
+
       const tx = await contract.initSecureInvestment(
         accounts[0],
         value,
