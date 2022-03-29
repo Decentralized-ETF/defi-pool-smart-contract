@@ -160,7 +160,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         require(amount >= minInvestmentLimit,"amount is too small");
         require(amount < maxInvestmentLimit,"amount is too large");
 
-    bool priceChanged = false;
+        bool priceChanged = false;
         for (uint8 i = 0; i < poolSize; i++) {
             uint256 inputAmountForToken = (amount * poolTokenPercentages[i]) / 100;
             uint256 amountOfToken = _quote(address(wmaticToken), poolTokens[i], inputAmountForToken);
@@ -171,24 +171,27 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         }
         require(priceChanged == false, "token price changed");
 
+        uint256 theManagerFee = (amount * managerFee) / 100;
+        uint256 investmentAmount = amount - theManagerFee;
+
         uint256[] memory tokenBalances = new uint256[](poolSize);
-        totalMaticReceived = totalMaticReceived + amount;
+        totalMaticReceived = totalMaticReceived + investmentAmount;
         uint256[] memory _recievedCurrency = recievedCurrency;
         for (uint8 i = 0; i < poolSize; i++) {
-            uint256 tokensReceived = maticToToken(amount, i);
+            uint256 tokensReceived = maticToToken(investmentAmount, i);
             tokenBalances[i] = tokensReceived;
         }
         recievedCurrency = _recievedCurrency;
         investmentDataByUser[investor].push(
             InvestmentData({
-        maticReceived : amount,
+        maticReceived : investmentAmount,
         tokenBalances : tokenBalances,
         rebalanceEnabled : true,
         active : true
         })
         );
+        wmaticToken.transferFrom(address(investor), payable(feeAddress), theManagerFee);
         emit Invested(investor, amount, tokenBalances, poolTokenPercentages);
-
     }
 
     function initInvestment(address investor, uint256 amount)
@@ -199,23 +202,27 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         require(amount >= minInvestmentLimit,"amount is too small");
         require(amount < maxInvestmentLimit,"amount is too large");
 
+        uint256 theManagerFee = (amount * managerFee) / 100;
+        uint256 investmentAmount = amount - theManagerFee;
+
         uint256[] memory tokenBalances = new uint256[](poolSize);
-        totalMaticReceived = totalMaticReceived + amount;
+        totalMaticReceived = totalMaticReceived + investmentAmount;
         uint256[] memory _recievedCurrency = recievedCurrency;
         for (uint8 i = 0; i < poolSize; i++) {
-            uint256 tokensReceived = maticToToken(amount, i);
+            uint256 tokensReceived = maticToToken(investmentAmount, i);
             tokenBalances[i] = tokensReceived;
         }
         recievedCurrency = _recievedCurrency;
         investmentDataByUser[investor].push(
             InvestmentData({
-        maticReceived : amount,
+        maticReceived : investmentAmount,
         tokenBalances : tokenBalances,
         rebalanceEnabled : true,
         active : true
         })
         );
-        emit Invested(investor, amount, tokenBalances, poolTokenPercentages);
+        wmaticToken.transferFrom(address(investor), payable(feeAddress), theManagerFee);
+        emit Invested(investor, investmentAmount, tokenBalances, poolTokenPercentages);
     }
 
     function finishInvestment(uint16 investmentId) external whenNotPaused {
@@ -229,7 +236,6 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             uint256 matic = tokensToMatic(investmentId, i);
             returnedMatic = returnedMatic + matic;
         }
-        //Address.sendValue(payable(msg.sender), returnedMatic);
         wmaticToken.transferFrom(address(this), payable(msg.sender), returnedMatic);
         investmentDataByUser[msg.sender][investmentId].active = false;
         emit UnInvested(msg.sender, returnedMatic, investmentId);
