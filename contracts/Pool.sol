@@ -46,9 +46,11 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     uint256 private minInvestmentLimit;
     uint256 private maxInvestmentLimit;
 
-    uint24 public fee = 3000;
+    uint24 private fee = 3000;
     uint256 private totalMaticReceived = 0;
     uint8 private poolSize = 0;
+
+    address private feeAddress;
 
     event Invested(
         address indexed user,
@@ -268,7 +270,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         poolTokenPercentages = poolDistributions;
     }
 
-    function setFee(uint24 _fee) external onlyOwner {
+    function setFee(uint24 _fee) external onlyOwner whenPaused {
         fee = _fee;
     }
 
@@ -276,7 +278,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         return fee;
     }
 
-    function setMinInvestmentLimit(uint256 _minInvestmentLimit) external onlyOwner {
+    function setMinInvestmentLimit(uint256 _minInvestmentLimit) external onlyOwner whenPaused {
         minInvestmentLimit = _minInvestmentLimit;
     }
 
@@ -284,12 +286,20 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         return minInvestmentLimit;
     }
 
-    function setMaxInvestmentLimit(uint256 _maxInvestmentLimit) external onlyOwner {
+    function setMaxInvestmentLimit(uint256 _maxInvestmentLimit) external onlyOwner whenPaused {
         maxInvestmentLimit = _maxInvestmentLimit;
     }
 
     function getMaxInvestmentLimit() public view virtual returns (uint256) {
         return maxInvestmentLimit;
+    }
+
+    function setFeeAddress(address _feeAddress) external onlyOwner whenPaused {
+        feeAddress = _feeAddress;
+    }
+
+    function getFeeAddress() public view virtual returns (address) {
+        return feeAddress;
     }
 
     function getPoolTokens() public view virtual returns (address[] memory) {
