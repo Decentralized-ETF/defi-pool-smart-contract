@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 
 contract Pool is ReentrancyGuard, Ownable, Pausable {
 
-    IERC20 private wmaticToken;
+    IERC20 private entryAsset;
 
     struct InvestmentData {
         uint256 maticReceived;
@@ -34,7 +34,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
 
     mapping(address => InvestmentData[]) private investmentDataByUser;
 
-    address public wMaticTokenAddress;
+    address public entryAssetAddress;
     address[] public poolTokens;
     uint24[] public poolTokenPercentages;
     uint256[] public poolTokenBalances;
@@ -79,7 +79,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     constructor(
         address _swapRouterContractAddress,
         address _quoterContractAddress,
-        address _wMaticTokenAddress,
+        address _entryAssetAddress,
         address[] memory _poolTokens,
         uint24[] memory _poolTokenPercentages
     ) public Ownable() {
@@ -91,9 +91,9 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         quoter = IQuoter(_quoterContractAddress);
         poolTokens = _poolTokens;
         poolTokenPercentages = _poolTokenPercentages;
-        wMaticTokenAddress = _wMaticTokenAddress;
+        entryAssetAddress = _entryAssetAddress;
         poolSize = uint8(poolTokens.length);
-        wmaticToken = IERC20(_wMaticTokenAddress);
+        entryAsset = IERC20(_entryAssetAddress);
         initBalance();
         pause();
     }
@@ -121,7 +121,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             return 0;
         }
         uint256 tokenBalance = _swap(
-            wMaticTokenAddress,
+            entryAssetAddress,
             poolTokens[i],
             (block.timestamp + 15) * (i + 1),
             inputAmountForToken, 0
@@ -143,7 +143,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         TransferHelper.safeApprove(poolTokens[i], address(swapRouter), tokenBalance);
         uint256 outputAmountFromToken = _swap(
             poolTokens[i],
-            wMaticTokenAddress,
+            entryAssetAddress,
             (block.timestamp + 15) * (i + 1),
             tokenBalance, 1
         );
@@ -163,7 +163,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         bool priceChanged = false;
         for (uint8 i = 0; i < poolSize; i++) {
             uint256 inputAmountForToken = (amount * poolTokenPercentages[i]) / 100;
-            uint256 amountOfToken = _quote(address(wmaticToken), poolTokens[i], inputAmountForToken);
+            uint256 amountOfToken = _quote(address(entryAsset), poolTokens[i], inputAmountForToken);
             if(amountOfToken != outputs[i]){
                 priceChanged = true;
                 break;
@@ -190,7 +190,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         active : true
         })
         );
-        wmaticToken.transferFrom(address(investor), payable(feeAddress), theManagerFee);
+        entryAsset.transferFrom(address(investor), payable(feeAddress), theManagerFee);
         emit Invested(investor, amount, tokenBalances, poolTokenPercentages);
     }
 
@@ -221,7 +221,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         active : true
         })
         );
-        wmaticToken.transferFrom(address(investor), payable(feeAddress), theManagerFee);
+        entryAsset.transferFrom(address(investor), payable(feeAddress), theManagerFee);
         emit Invested(investor, investmentAmount, tokenBalances, poolTokenPercentages);
     }
 
@@ -241,9 +241,9 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         if(returnedMatic > maticReceived){
             uint256 theSuccessFee = (returnedMatic * successFee) / 100;
             finalReturnedMatic = returnedMatic - theSuccessFee;
-            wmaticToken.transferFrom(address(this), payable(feeAddress), theSuccessFee);
+            entryAsset.transferFrom(address(this), payable(feeAddress), theSuccessFee);
         }
-        wmaticToken.transferFrom(address(this), payable(msg.sender), finalReturnedMatic);
+        entryAsset.transferFrom(address(this), payable(msg.sender), finalReturnedMatic);
         investmentDataByUser[msg.sender][investmentId].active = false;
         emit UnInvested(msg.sender, returnedMatic, investmentId);
     }
