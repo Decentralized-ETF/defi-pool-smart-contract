@@ -97,7 +97,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         poolSize = uint8(poolTokens.length);
         entryAsset = IERC20(_entryAssetAddress);
         initBalance();
-        pause();
+        // pause();
     }
 
     receive() external payable {
