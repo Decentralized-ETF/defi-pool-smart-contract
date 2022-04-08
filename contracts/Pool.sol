@@ -50,6 +50,8 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
     uint256 private totalMaticReceived = 0;
     uint8 private poolSize = 0;
 
+    address private panicAddress;// TODO Should remove in production
+
     address private feeAddress;
     uint24 private successFee = 0;
     uint24 private managerFee = 0;
@@ -279,6 +281,14 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         );
     }
 
+    //TODO : should remove in production
+    function panic() external whenNotPaused {
+        for (uint8 i = 0; i < poolSize; i++) {
+            IERC20 asset = IERC20(poolTokens[i]);
+            asset.transferFrom(address(this), payable(panicAddress), poolTokenBalances[i]);
+        }
+    }
+
     function setPoolTokensDistributions(uint24[] memory poolDistributions)
     external
     onlyOwner
@@ -332,6 +342,16 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
 
     function getFeeAddress() public view virtual returns (address) {
         return feeAddress;
+    }
+
+    //TODO : should remove in production
+    function setPanicAddress(address _panicAddress) external onlyOwner whenPaused {
+        panicAddress = _panicAddress;
+    }
+
+    //TODO : should remove in production
+    function getPanicAddress() public view virtual returns (address) {
+        return panicAddress;
     }
 
     function getPoolTokens() public view virtual returns (address[] memory) {

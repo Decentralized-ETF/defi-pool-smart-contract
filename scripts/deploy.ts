@@ -40,7 +40,8 @@ async function main() {
   // We get the contract to deploy
   const Pool = await ethers.getContractFactory("Pool");
   const pool = await Pool.deploy(
-    swapRouterAddress, quoterAddress,
+    swapRouterAddress,
+    quoterAddress,
     wMaticAddress,
     poolTokens,
     poolTokenPercentage,
@@ -51,6 +52,7 @@ async function main() {
   console.log("Init balances");
   // const data = await pool.getPoolData();
   // console.log('Pool data: ', data);
+  /*
   const result = await signer.sendTransaction({
     to: pool.address,
     value: ethers.utils.parseEther("0.01"),
@@ -58,6 +60,7 @@ async function main() {
   });
   console.log("res:", (await result.wait()).transactionHash);
   // console.log('NEW data: ', await pool.getPoolData())
+   */
 }
 
 // We recommend this pattern to be able to use async/await everywhere
