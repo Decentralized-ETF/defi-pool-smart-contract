@@ -7,54 +7,17 @@ import "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "./BasePool.sol";
 
-contract Pool is ReentrancyGuard, Ownable, Pausable {
+contract Pool is BasePool {
 
     IERC20 private entryAsset;
 
-    struct InvestmentData {
-        uint256 maticReceived;
-        uint256[] tokenBalances;
-        bool rebalanceEnabled;
-        bool active;
-    }
-
-    struct PoolData {
-        uint256 totalMaticReceived;
-        address[] poolTokens;
-        uint24[] poolTokenPercentages;
-        uint256[] tokenBalances;
-        uint256[] recievedCurrency;
-        uint8 poolSize;
-    }
-
-    mapping(address => InvestmentData[]) private investmentDataByUser;
-
     address public entryAssetAddress;
-    address[] public poolTokens;
-    uint24[] public poolTokenPercentages;
-    uint256[] public poolTokenBalances;
-    uint256[] public recievedCurrency;
 
     ISwapRouter public immutable swapRouter;
     IQuoter public immutable quoter;
-
-    uint256 private minInvestmentLimit;
-    uint256 private maxInvestmentLimit;
-
-    uint24 private fee = 3000;
-    uint256 private totalMaticReceived = 0;
-    uint8 private poolSize = 0;
-
-    address private panicAddress;// TODO Should remove in production
-
-    address private feeAddress;
-    uint24 private successFee = 0;
-    uint24 private managerFee = 0;
 
     event Invested(
         address indexed user,
@@ -96,25 +59,12 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         entryAssetAddress = _entryAssetAddress;
         poolSize = uint8(poolTokens.length);
         entryAsset = IERC20(_entryAssetAddress);
-        initBalance();
-        // pause();
     }
 
     receive() external payable {
         require(msg.value > 0, "send matic");
         this.initInvestment(msg.sender, msg.value);
         emit Received(msg.sender, msg.value);
-    }
-
-    function initBalance() public onlyOwner {
-        uint256[] memory _poolTokenBalances = new uint256[](poolSize);
-        uint256[] memory _recievedCurrency = new uint256[](poolSize);
-        for (uint256 i = 0; i < poolSize; ++i) {
-            _poolTokenBalances[i] = 0;
-            _recievedCurrency[i] = 0;
-        }
-        poolTokenBalances = _poolTokenBalances;
-        recievedCurrency = _recievedCurrency;
     }
 
     function maticToToken(uint256 amount, uint8 i) internal returns (uint256) {
@@ -129,7 +79,7 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             inputAmountForToken, 0
         );
         poolTokenBalances[i] = poolTokenBalances[i] + tokenBalance;
-        recievedCurrency[i] = recievedCurrency[i] + inputAmountForToken;
+        receivedCurrency[i] = receivedCurrency[i] + inputAmountForToken;
         return tokenBalance;
     }
 
@@ -178,12 +128,12 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
 
         uint256[] memory tokenBalances = new uint256[](poolSize);
         totalMaticReceived = totalMaticReceived + investmentAmount;
-        uint256[] memory _recievedCurrency = recievedCurrency;
+        uint256[] memory _receivedCurrency = receivedCurrency;
         for (uint8 i = 0; i < poolSize; i++) {
             uint256 tokensReceived = maticToToken(investmentAmount, i);
             tokenBalances[i] = tokensReceived;
         }
-        recievedCurrency = _recievedCurrency;
+        receivedCurrency = _receivedCurrency;
         investmentDataByUser[investor].push(
             InvestmentData({
         maticReceived : investmentAmount,
@@ -209,12 +159,12 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
 
         uint256[] memory tokenBalances = new uint256[](poolSize);
         totalMaticReceived = totalMaticReceived + investmentAmount;
-        uint256[] memory _recievedCurrency = recievedCurrency;
+        uint256[] memory _receivedCurrency = receivedCurrency;
         for (uint8 i = 0; i < poolSize; i++) {
             uint256 tokensReceived = maticToToken(investmentAmount, i);
             tokenBalances[i] = tokensReceived;
         }
-        recievedCurrency = _recievedCurrency;
+        receivedCurrency = _receivedCurrency;
         investmentDataByUser[investor].push(
             InvestmentData({
         maticReceived : investmentAmount,
@@ -289,121 +239,6 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
         }
     }
 
-    function setPoolTokensDistributions(uint24[] memory poolDistributions)
-    external
-    onlyOwner
-    {
-        poolTokenPercentages = poolDistributions;
-    }
-
-    function setSuccessFee(uint24 _successFee) external onlyOwner whenPaused {
-        successFee = _successFee;
-    }
-
-    function getSuccessFee() public view virtual returns (uint24) {
-        return successFee;
-    }
-
-    function setManagerFee(uint24 _managerFee) external onlyOwner whenPaused {
-        managerFee = _managerFee;
-    }
-
-    function getManagerFee() public view virtual returns (uint24) {
-        return managerFee;
-    }
-
-    function setFee(uint24 _fee) external onlyOwner whenPaused {
-        fee = _fee;
-    }
-
-    function getFee() public view virtual returns (uint24) {
-        return fee;
-    }
-
-    function setMinInvestmentLimit(uint256 _minInvestmentLimit) external onlyOwner whenPaused {
-        minInvestmentLimit = _minInvestmentLimit;
-    }
-
-    function getMinInvestmentLimit() public view virtual returns (uint256) {
-        return minInvestmentLimit;
-    }
-
-    function setMaxInvestmentLimit(uint256 _maxInvestmentLimit) external onlyOwner whenPaused {
-        maxInvestmentLimit = _maxInvestmentLimit;
-    }
-
-    function getMaxInvestmentLimit() public view virtual returns (uint256) {
-        return maxInvestmentLimit;
-    }
-
-    function setFeeAddress(address _feeAddress) external onlyOwner whenPaused {
-        feeAddress = _feeAddress;
-    }
-
-    function getFeeAddress() public view virtual returns (address) {
-        return feeAddress;
-    }
-
-    //TODO : should remove in production
-    function setPanicAddress(address _panicAddress) external onlyOwner whenPaused {
-        panicAddress = _panicAddress;
-    }
-
-    //TODO : should remove in production
-    function getPanicAddress() public view virtual returns (address) {
-        return panicAddress;
-    }
-
-    function getPoolTokens() public view virtual returns (address[] memory) {
-        return poolTokens;
-    }
-
-    function getPoolTokensDistributions()
-    public
-    view
-    virtual
-    returns (uint24[] memory)
-    {
-        return poolTokenPercentages;
-    }
-
-    function getInvestment(address investor, uint16 investmentId)
-    public
-    view
-    virtual
-    returns (InvestmentData memory)
-    {
-        require(investmentId >= 0, "invalid investment Id");
-
-        return investmentDataByUser[investor][investmentId];
-    }
-
-    function getInvestments(address investor)
-    public
-    view
-    virtual
-    returns (InvestmentData[] memory)
-    {
-        return investmentDataByUser[investor];
-    }
-
-    function getPoolData()
-    public
-    view
-    virtual
-    returns (PoolData memory)
-    {
-        PoolData memory pooData = PoolData({
-        totalMaticReceived : totalMaticReceived,
-        tokenBalances : poolTokenBalances,
-        poolTokens : poolTokens,
-        poolTokenPercentages : poolTokenPercentages,
-        recievedCurrency : recievedCurrency,
-        poolSize : poolSize
-        });
-        return pooData;
-    }
-
     function _quote(
         address tokenIn,
         address tokenOut,
@@ -434,13 +269,5 @@ contract Pool is ReentrancyGuard, Ownable, Pausable {
             return swapRouter.exactInputSingle{value : amount}(paramsForSwap);
         }
         return swapRouter.exactInputSingle(paramsForSwap);
-    }
-
-    function pause() public onlyOwner {
-        _pause();
-    }
-
-    function unpause() public onlyOwner {
-        _unpause();
     }
 }

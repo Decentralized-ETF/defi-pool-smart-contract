@@ -49,7 +49,7 @@ async function main() {
   );
   await pool.deployed();
   console.log("Deployed at: ", pool.address);
-  console.log("Init balances");
+  // console.log("Init balances");
   // const data = await pool.getPoolData();
   // console.log('Pool data: ', data);
   /*
