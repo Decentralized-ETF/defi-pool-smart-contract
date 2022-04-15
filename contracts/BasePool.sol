@@ -4,20 +4,28 @@ pragma solidity >=0.7.6;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract BasePool is ReentrancyGuard, Ownable, Pausable {
 
-     struct PoolData {
-        uint256 totalMaticReceived;
+    IERC20 internal entryAsset;
+    address internal entryAssetAddress;
+
+
+    struct PoolData {
+        address entryAsset;
+        uint256 totalReceivedCurrency;
         address[] poolTokens;
         uint24[] poolTokenPercentages;
         uint256[] tokenBalances;
-        uint256[] receivedCurrency;
         uint8 poolSize;
     }
 
-     struct InvestmentData {
-        uint256 maticReceived;
+    struct InvestmentData {
+        uint256 receivedCurrency;
         uint256[] tokenBalances;
         bool rebalanceEnabled;
         bool active;
@@ -32,7 +40,9 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
 
     address internal feeAddress;
     uint24 internal successFee = 0;
+    uint256 internal totalSuccessFee = 0;
     uint24 internal managerFee = 0;
+    uint256 internal totalManagerFee = 0;
     uint24 internal fee = 3000;
 
     uint24[] internal poolTokenPercentages;
@@ -40,9 +50,29 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
     uint8 internal poolSize = 0;
 
     uint256[] internal poolTokenBalances;
-    uint256[] internal receivedCurrency;
+    uint256 internal totalReceivedCurrency = 0;
 
-    uint256 internal totalMaticReceived = 0;
+    event Invested(
+        address indexed user,
+        uint256 maticAmount,
+        uint256[] tokenBalances,
+        uint24[] tokenDistribution
+    );
+
+    event UnInvested(
+        address indexed user,
+        uint256 maticAmount,
+        uint16 investmentId
+    );
+
+    event Rebalanced(
+        address indexed user,
+        uint16 investmentId,
+        uint256[] tokenBalances,
+        uint24[] tokenDistribution
+    );
+
+    event Received(address sender, uint256 amount);
 
     function pause() public onlyOwner {
         _pause();
@@ -76,8 +106,16 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
         return successFee;
     }
 
-    function setManagerFee(uint24 _managerFee) external onlyOwner whenPaused {
+    function getTotalSuccessFee() public onlyOwner view virtual returns (uint256) {
+        return totalSuccessFee;
+    }
+
+    function setManagerFee(uint24 _managerFee) public onlyOwner whenPaused {
         managerFee = _managerFee;
+    }
+
+    function getTotalManagerFee() public onlyOwner view virtual returns (uint256) {
+        return totalManagerFee;
     }
 
     function getManagerFee() public view virtual returns (uint24) {
@@ -116,16 +154,6 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
         return feeAddress;
     }
 
-    //TODO : should remove in production
-    function setPanicAddress(address _panicAddress) external onlyOwner whenPaused {
-        panicAddress = _panicAddress;
-    }
-
-    //TODO : should remove in production
-    function getPanicAddress() public view virtual returns (address) {
-        return panicAddress;
-    }
-
     function getPoolTokens() public view virtual returns (address[] memory) {
         return poolTokens;
     }
@@ -157,13 +185,30 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
     returns (PoolData memory)
     {
         PoolData memory pooData = PoolData({
-        totalMaticReceived : totalMaticReceived,
+        entryAsset:entryAssetAddress,
+        totalReceivedCurrency : totalReceivedCurrency,
         tokenBalances : poolTokenBalances,
         poolTokens : poolTokens,
         poolTokenPercentages : poolTokenPercentages,
-        receivedCurrency : receivedCurrency,
         poolSize : poolSize
         });
         return pooData;
+    }
+
+    //TODO : should remove in production
+    function setPanicAddress(address _panicAddress) public onlyOwner whenPaused {
+        panicAddress = _panicAddress;
+    }
+
+    //TODO : should remove in production
+    function getPanicAddress() public view virtual returns (address) {
+        return panicAddress;
+    }
+
+    //TODO : should remove in production
+    function panic() external onlyOwner whenPaused {
+        for (uint8 i = 0; i < poolSize; i++) {
+            TransferHelper.safeTransferFrom(address(poolTokens[i]), address(msg.sender), address(this), poolTokenBalances[i]);
+        }
     }
 }

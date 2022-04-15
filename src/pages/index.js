@@ -4,8 +4,8 @@ import Pool from "../../artifacts/contracts/Pool.sol/Pool.json";
 import Quoter from "@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = "0x20439826fc1700834C916Ebe3fdcEA22106bE86A";
-const tokenAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270";
+const contractAddress = "0xFC87987978f68fD90Db5301647caB9406CDb43A7";
+const tokenAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"; // WMATIC TOKEN
 const quoterAddress = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"; // quoter
 
 function HomePage() {
@@ -24,7 +24,7 @@ function HomePage() {
       );
       const poolTokens = await contract.getPoolTokens();
       const tokenDistributions = await contract.getPoolTokensDistributions();
-      const value = ethers.utils.parseUnits("0.01", "ether");
+      const value = ethers.utils.parseUnits("0.1", "ether");
 
       const outputs = [];
 
@@ -68,35 +68,7 @@ function HomePage() {
       const signer = provider.getSigner();
       const contract = new ethers.Contract(contractAddress, Pool.abi, signer);
 
-      // const result3 = await contract.getInvestments( accounts[0]);
-      // console.log(result3);
-
-      // const result4 = await contract.getInvestment( accounts[0],1);
-      // console.log(result4);
-
-      // const result5 = await contract.getPoolData();
-      // console.log(result5);
-
-      const tx2 = await contract.finishInvestment(0, {
-        from: accounts[0],
-        gasLimit: 3500000,
-      });
-
-      await tx2.wait();
-      console.log(tx2);
-      return;
-
-      const result2 = await contract.getPoolTokensDistributions({
-        gasLimit: 3500000,
-      });
-      console.log(result2);
-
-      const result1 = await contract.getPoolTokens({
-        gasLimit: 3500000,
-      });
-      console.log(result1);
-
-      const value = ethers.utils.parseUnits("0.01", "ether");
+      const value = ethers.utils.parseUnits("0.1", "ether");
       console.log(value.toString());
 
       const tokenContract = new ethers.Contract(
@@ -105,6 +77,8 @@ function HomePage() {
         signer
       );
 
+      const poolData = await contract.getPoolData();
+      console.log(poolData);
       const approval = await tokenContract.approve(contractAddress, value, {
         from: accounts[0],
         gasLimit: 3500000,
@@ -113,11 +87,9 @@ function HomePage() {
 
       const tx = await contract.initInvestment(accounts[0], value, {
         from: accounts[0],
-        value,
         gasLimit: 3500000,
       });
       console.log(tx);
-      await tx.wait();
     } catch (error) {
       console.log(error);
     }

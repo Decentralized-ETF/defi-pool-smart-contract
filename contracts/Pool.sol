@@ -2,44 +2,15 @@
 pragma solidity >=0.7.6;
 pragma experimental ABIEncoderV2;
 
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
+
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "./BasePool.sol";
 
 contract Pool is BasePool {
 
-    IERC20 private entryAsset;
-
-    address public entryAssetAddress;
-
-    ISwapRouter public immutable swapRouter;
-    IQuoter public immutable quoter;
-
-    event Invested(
-        address indexed user,
-        uint256 maticAmount,
-        uint256[] tokenBalances,
-        uint24[] tokenDistribution
-    );
-
-    event UnInvested(
-        address indexed user,
-        uint256 maticAmount,
-        uint16 investmentId
-    );
-
-    event Rebalanced(
-        address indexed user,
-        uint16 investmentId,
-        uint256[] tokenBalances,
-        uint24[] tokenDistribution
-    );
-
-    event Received(address sender, uint256 amount);
+    ISwapRouter internal immutable swapRouter;
+    IQuoter internal immutable quoter;
 
     constructor(
         address _swapRouterContractAddress,
@@ -59,31 +30,22 @@ contract Pool is BasePool {
         entryAssetAddress = _entryAssetAddress;
         poolSize = uint8(poolTokens.length);
         entryAsset = IERC20(_entryAssetAddress);
+        poolTokenBalances = new uint256[](poolSize);
     }
 
-    receive() external payable {
-        require(msg.value > 0, "send matic");
-        this.initInvestment(msg.sender, msg.value);
-        emit Received(msg.sender, msg.value);
-    }
-
-    function maticToToken(uint256 amount, uint8 i) internal returns (uint256) {
+    function entryAssetToToken(uint256 amount, uint8 i) internal returns (uint256 tokenBalance) {
         uint256 inputAmountForToken = (amount * poolTokenPercentages[i]) / 100;
-        if (poolTokenPercentages[i] == 0) {
-            return 0;
-        }
-        uint256 tokenBalance = _swap(
+        tokenBalance = _swap(
             entryAssetAddress,
             poolTokens[i],
             (block.timestamp + 15) * (i + 1),
-            inputAmountForToken, 0
+            inputAmountForToken
         );
         poolTokenBalances[i] = poolTokenBalances[i] + tokenBalance;
-        receivedCurrency[i] = receivedCurrency[i] + inputAmountForToken;
         return tokenBalance;
     }
 
-    function tokensToMatic(uint16 investmentId, uint8 i)
+    function tokensToEntryAsset(uint16 investmentId, uint8 i)
     internal
     returns (uint256)
     {
@@ -97,7 +59,7 @@ contract Pool is BasePool {
             poolTokens[i],
             entryAssetAddress,
             (block.timestamp + 15) * (i + 1),
-            tokenBalance, 1
+            tokenBalance
         );
         investmentDataByUser[msg.sender][investmentId].tokenBalances[i] = 0;
         poolTokenBalances[i] = poolTokenBalances[i] - tokenBalance;
@@ -105,139 +67,132 @@ contract Pool is BasePool {
     }
 
     function initSecureInvestment(address investor, uint256 amount, uint256[] memory outputs)
-    external
-    payable
+    public
     whenNotPaused
     {
-        require(amount >= minInvestmentLimit,"amount is too small");
-        require(amount < maxInvestmentLimit,"amount is too large");
+        require(amount >= minInvestmentLimit, "amount is too small");
 
         bool priceChanged = false;
         for (uint8 i = 0; i < poolSize; i++) {
             uint256 inputAmountForToken = (amount * poolTokenPercentages[i]) / 100;
             uint256 amountOfToken = _quote(address(entryAsset), poolTokens[i], inputAmountForToken);
-            if(amountOfToken != outputs[i]){
+            if (amountOfToken != outputs[i]) {
                 priceChanged = true;
                 break;
             }
         }
         require(priceChanged == false, "token price changed");
-
+        TransferHelper.safeTransferFrom(address(entryAsset), address(investor), address(this), amount);
         uint256 theManagerFee = (amount * managerFee) / 100;
         uint256 investmentAmount = amount - theManagerFee;
 
         uint256[] memory tokenBalances = new uint256[](poolSize);
-        totalMaticReceived = totalMaticReceived + investmentAmount;
-        uint256[] memory _receivedCurrency = receivedCurrency;
+        totalReceivedCurrency = totalReceivedCurrency + investmentAmount;
+        TransferHelper.safeApprove(address(entryAsset), address(swapRouter), investmentAmount);
         for (uint8 i = 0; i < poolSize; i++) {
-            uint256 tokensReceived = maticToToken(investmentAmount, i);
+            uint256 tokensReceived = entryAssetToToken(investmentAmount, i);
             tokenBalances[i] = tokensReceived;
         }
-        receivedCurrency = _receivedCurrency;
         investmentDataByUser[investor].push(
             InvestmentData({
-        maticReceived : investmentAmount,
+        receivedCurrency : investmentAmount,
         tokenBalances : tokenBalances,
         rebalanceEnabled : true,
         active : true
         })
         );
-        entryAsset.transferFrom(address(investor), payable(feeAddress), theManagerFee);
+        if (theManagerFee > 0) {
+            totalManagerFee = totalManagerFee + theManagerFee;
+            TransferHelper.safeTransferFrom(address(entryAsset), address(this), address(feeAddress), theManagerFee);
+        }
         emit Invested(investor, amount, tokenBalances, poolTokenPercentages);
     }
 
     function initInvestment(address investor, uint256 amount)
-    external
-    payable
+    public
     whenNotPaused
     {
-        require(amount >= minInvestmentLimit,"amount is too small");
-        require(amount < maxInvestmentLimit,"amount is too large");
-
+        require(amount >= minInvestmentLimit, "amount is too small");
+        TransferHelper.safeTransferFrom(address(entryAsset), address(investor), address(this), amount);
         uint256 theManagerFee = (amount * managerFee) / 100;
         uint256 investmentAmount = amount - theManagerFee;
 
         uint256[] memory tokenBalances = new uint256[](poolSize);
-        totalMaticReceived = totalMaticReceived + investmentAmount;
-        uint256[] memory _receivedCurrency = receivedCurrency;
+        totalReceivedCurrency = totalReceivedCurrency + investmentAmount;
+        TransferHelper.safeApprove(address(entryAsset), address(swapRouter), investmentAmount);
+
         for (uint8 i = 0; i < poolSize; i++) {
-            uint256 tokensReceived = maticToToken(investmentAmount, i);
-            tokenBalances[i] = tokensReceived;
+            uint256 tokenBalance = entryAssetToToken(investmentAmount, i);
+            tokenBalances[i] = tokenBalance;
         }
-        receivedCurrency = _receivedCurrency;
         investmentDataByUser[investor].push(
             InvestmentData({
-        maticReceived : investmentAmount,
+        receivedCurrency : investmentAmount,
         tokenBalances : tokenBalances,
         rebalanceEnabled : true,
         active : true
         })
         );
-        entryAsset.transferFrom(address(investor), payable(feeAddress), theManagerFee);
+        if (theManagerFee > 0) {
+            totalManagerFee = totalManagerFee + theManagerFee;
+            TransferHelper.safeTransferFrom(address(entryAsset), address(this), address(feeAddress), theManagerFee);
+        }
         emit Invested(investor, investmentAmount, tokenBalances, poolTokenPercentages);
     }
 
-    function finishInvestment(uint16 investmentId) external whenNotPaused {
-        require(investmentId >= 0, "invalid investment Id");
-        require(
-            investmentDataByUser[msg.sender][investmentId].active == true,
-            "Investment is not active"
-        );
-        uint256 returnedMatic = 0;
-        for (uint8 i = 0; i < poolSize; i++) {
-            uint256 matic = tokensToMatic(investmentId, i);
-            returnedMatic = returnedMatic + matic;
-        }
-        uint256 finalReturnedMatic = returnedMatic;
-        uint256 maticReceived = investmentDataByUser[msg.sender][investmentId].maticReceived;
-        if(returnedMatic > maticReceived){
-            uint256 theSuccessFee = (returnedMatic * successFee) / 100;
-            finalReturnedMatic = returnedMatic - theSuccessFee;
-            entryAsset.transferFrom(address(this), payable(feeAddress), theSuccessFee);
-        }
-        entryAsset.transferFrom(address(this), payable(msg.sender), finalReturnedMatic);
-        investmentDataByUser[msg.sender][investmentId].active = false;
-        emit UnInvested(msg.sender, returnedMatic, investmentId);
-    }
-
-    function rebalance(uint16 investmentId) external whenNotPaused {
-        require(investmentId >= 0, "invalid investment Id");
-        InvestmentData memory data = investmentDataByUser[msg.sender][
-        investmentId
-        ];
-        require(data.rebalanceEnabled == true, "rebalancenot not enabled");
-        //First we should swap all tokens to matic
-        uint256 allSwappedMatic = 0;
-        for (uint8 i = 0; i < poolSize; i++) {
-            uint256 maticReceived = tokensToMatic(investmentId, i);
-            allSwappedMatic = allSwappedMatic + maticReceived;
-        }
-        //Apply new distribution
-        for (uint8 i = 0; i < poolSize; ++i) {
-            uint256 tokenBalance = maticToToken(
-                (allSwappedMatic * poolTokenPercentages[i]) / 100,
-                i
+        function finishInvestment(uint16 investmentId) public whenNotPaused {
+            require(investmentId >= 0, "invalid investment Id");
+            require(
+                investmentDataByUser[msg.sender][investmentId].active == true,
+                "Investment is not active"
             );
-            poolTokenBalances[i] = poolTokenBalances[i] + tokenBalance;
-            data.tokenBalances[i] = data.tokenBalances[i] + tokenBalance;
+            uint256 entryAssetAmount = 0;
+            for (uint8 i = 0; i < poolSize; i++) {
+                uint256 amount = tokensToEntryAsset(investmentId, i);
+                entryAssetAmount = entryAssetAmount + amount;
+            }
+            uint256 finalEntryAssetAmount = entryAssetAmount;
+            uint256 receivedCurrency = investmentDataByUser[msg.sender][investmentId].receivedCurrency;
+            if (entryAssetAmount > receivedCurrency) {
+                uint256 theSuccessFee = (entryAssetAmount * successFee) / 100;
+                finalEntryAssetAmount = entryAssetAmount - theSuccessFee;
+                totalSuccessFee = totalSuccessFee + theSuccessFee;
+                TransferHelper.safeTransferFrom(address(entryAsset), address(this), address(feeAddress), theSuccessFee);
+            }
+            TransferHelper.safeTransferFrom(address(entryAsset), address(this), address(msg.sender), finalEntryAssetAmount);
+            investmentDataByUser[msg.sender][investmentId].active = false;
+            emit UnInvested(msg.sender, finalEntryAssetAmount, investmentId);
         }
-        // Save result to storage
-        investmentDataByUser[msg.sender][investmentId] = data;
-        emit Rebalanced(
-            msg.sender,
-            investmentId,
-            data.tokenBalances,
-            poolTokenPercentages
-        );
-    }
 
-    //TODO : should remove in production
-    function panic() external whenNotPaused {
-        for (uint8 i = 0; i < poolSize; i++) {
-            IERC20 asset = IERC20(poolTokens[i]);
-            asset.transferFrom(address(this), payable(panicAddress), poolTokenBalances[i]);
+        function rebalance(uint16 investmentId) public whenNotPaused {
+            require(investmentId >= 0, "invalid investment Id");
+            InvestmentData memory data = investmentDataByUser[msg.sender][
+            investmentId
+            ];
+            require(data.rebalanceEnabled == true, "rebalancenot not enabled");
+            uint256 allSwappedCurrency = 0;
+            for (uint8 i = 0; i < poolSize; i++) {
+                uint256 amount = tokensToEntryAsset(investmentId, i);
+                allSwappedCurrency = allSwappedCurrency + amount;
+            }
+            TransferHelper.safeApprove(address(entryAsset), address(swapRouter), allSwappedCurrency);
+            for (uint8 i = 0; i < poolSize; ++i) {
+                uint256 tokenBalance = entryAssetToToken(
+                    (allSwappedCurrency * poolTokenPercentages[i]) / 100,
+                    i
+                );
+                poolTokenBalances[i] = poolTokenBalances[i] + tokenBalance;
+                data.tokenBalances[i] = data.tokenBalances[i] + tokenBalance;
+            }
+
+            investmentDataByUser[msg.sender][investmentId] = data;
+            emit Rebalanced(
+                msg.sender,
+                investmentId,
+                data.tokenBalances,
+                poolTokenPercentages
+            );
         }
-    }
 
     function _quote(
         address tokenIn,
@@ -251,23 +206,18 @@ contract Pool is BasePool {
         address tokenIn,
         address tokenOut,
         uint256 timestamp,
-        uint256 amount,
-        uint8 mode
+        uint256 amount
     ) internal returns (uint256) {
-        ISwapRouter.ExactInputSingleParams memory paramsForSwap = ISwapRouter
-        .ExactInputSingleParams(
-            tokenIn,
-            tokenOut,
-            fee,
-            address(this),
-            timestamp,
-            amount,
-            0,
-            0
-        );
-        if (mode == 0) {
-            return swapRouter.exactInputSingle{value : amount}(paramsForSwap);
-        }
+        ISwapRouter.ExactInputSingleParams memory paramsForSwap = ISwapRouter.ExactInputSingleParams({
+        tokenIn : tokenIn,
+        tokenOut : tokenOut,
+        fee : fee,
+        recipient : address(this),
+        deadline : timestamp,
+        amountIn : amount,
+        amountOutMinimum : 0,
+        sqrtPriceLimitX96 : 0
+        });
         return swapRouter.exactInputSingle(paramsForSwap);
     }
 }
