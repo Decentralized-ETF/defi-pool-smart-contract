@@ -2,7 +2,6 @@
 pragma solidity >=0.7.6;
 pragma experimental ABIEncoderV2;
 
-
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "./BasePool.sol";
@@ -219,5 +218,11 @@ contract Pool is BasePool {
         sqrtPriceLimitX96 : 0
         });
         return swapRouter.exactInputSingle(paramsForSwap);
+    }
+
+    receive() external payable {
+        require(msg.value > 0, "send matic");
+        initInvestment(msg.sender, msg.value);
+        emit Received(msg.sender, msg.value);
     }
 }
