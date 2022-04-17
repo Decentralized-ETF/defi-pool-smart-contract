@@ -29,6 +29,7 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
         uint256[] tokenBalances;
         bool rebalanceEnabled;
         bool active;
+        bool inputIsNativeToken;
     }
 
     mapping(address => InvestmentData[]) internal investmentDataByUser;

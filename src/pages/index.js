@@ -4,7 +4,7 @@ import Pool from "../../artifacts/contracts/Pool.sol/Pool.json";
 import Quoter from "@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = "0xFC87987978f68fD90Db5301647caB9406CDb43A7";
+const contractAddress = "0x5845f4f3fC50e9848D5352F60F9394d987abD3ef";
 const tokenAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"; // WMATIC TOKEN
 const quoterAddress = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"; // quoter
 
@@ -85,7 +85,7 @@ function HomePage() {
       });
       await approval.wait();
 
-      const tx = await contract.initInvestment(accounts[0], value, {
+      const tx = await contract.initInvestment(accounts[0], value, false, {
         from: accounts[0],
         gasLimit: 3500000,
       });
@@ -103,8 +103,10 @@ function HomePage() {
       const accounts = await provider.listAccounts();
       const signer = provider.getSigner();
       const contract = new ethers.Contract(contractAddress, Pool.abi, signer);
+const investmentData = await contract.getInvestment(accounts[0],0);
+console.log(investmentData);
 
-      const tx = await contract.finishInvestment(1, {
+      const tx = await contract.finishInvestment(0, {
         from: accounts[0],
         gasLimit: 3500000,
       });
