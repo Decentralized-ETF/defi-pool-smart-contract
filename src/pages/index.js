@@ -4,7 +4,7 @@ import Pool from "../../artifacts/contracts/Pool.sol/Pool.json";
 import Quoter from "@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = "0x5845f4f3fC50e9848D5352F60F9394d987abD3ef";
+const contractAddress = "0xFF17dcAE00ab663a7f6AE8a6173964E29b9998F3";
 const tokenAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"; // WMATIC TOKEN
 const quoterAddress = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"; // quoter
 
