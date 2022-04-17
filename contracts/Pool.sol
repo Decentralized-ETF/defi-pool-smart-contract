@@ -146,7 +146,7 @@ contract Pool is BasePool {
         }
         bool inputIsNativeToken = investmentDataByUser[msg.sender][investmentId].inputIsNativeToken;
         if(inputIsNativeToken){
-            payer.unwrapWETH9(entryAssetAmount,address(msg.sender));
+            payer.unwrapWETH9(finalEntryAssetAmount,address(msg.sender));
         }else {
             TransferHelper.safeTransferFrom(address(entryAsset), address(this), address(msg.sender), finalEntryAssetAmount);
         }
