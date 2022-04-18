@@ -4,13 +4,9 @@ pragma experimental ABIEncoderV2;
 
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryPayments.sol";
 import "./BasePool.sol";
 
 contract Pool is BasePool {
-
-    IPeripheryPayments internal payer;
-
     ISwapRouter internal immutable swapRouter;
     IQuoter internal immutable quoter;
 
@@ -26,7 +22,6 @@ contract Pool is BasePool {
             "Required to specify percentages for all tokens in token list"
         );
         swapRouter = ISwapRouter(_swapRouterContractAddress);
-        payer = IPeripheryPayments(_swapRouterContractAddress);
         quoter = IQuoter(_quoterContractAddress);
         poolTokens = _poolTokens;
         poolTokenPercentages = _poolTokenPercentages;
@@ -71,7 +66,7 @@ contract Pool is BasePool {
         return outputAmountFromToken;
     }
 
-    function initSecureInvestment(address investor, uint256 amount,bool inputIsNativeToken, uint256[] memory outputs)
+    function initSecureInvestment(address investor, uint256 amount, uint256[] memory outputs)
     public
     whenNotPaused
     {
@@ -144,12 +139,7 @@ contract Pool is BasePool {
             totalSuccessFee = totalSuccessFee + theSuccessFee;
             TransferHelper.safeTransferFrom(address(entryAsset), address(this), address(feeAddress), theSuccessFee);
         }
-        bool inputIsNativeToken = investmentDataByUser[msg.sender][investmentId].inputIsNativeToken;
-        if(inputIsNativeToken){
-            payer.unwrapWETH9(finalEntryAssetAmount,address(msg.sender));
-        }else {
-            TransferHelper.safeTransferFrom(address(entryAsset), address(this), address(msg.sender), finalEntryAssetAmount);
-        }
+        TransferHelper.safeTransferFrom(address(entryAsset), address(this), address(msg.sender), finalEntryAssetAmount);
         investmentDataByUser[msg.sender][investmentId].active = false;
         emit UnInvested(msg.sender, finalEntryAssetAmount, investmentId);
     }
