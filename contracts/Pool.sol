@@ -26,7 +26,7 @@ contract Pool is BasePool {
             "Required to specify percentages for all tokens in token list"
         );
         swapRouter = ISwapRouter(_swapRouterContractAddress);
-        payer = IPeripheryPayments(address(this));
+        payer = IPeripheryPayments(_swapRouterContractAddress);
         quoter = IQuoter(_quoterContractAddress);
         poolTokens = _poolTokens;
         poolTokenPercentages = _poolTokenPercentages;
@@ -146,7 +146,7 @@ contract Pool is BasePool {
         }
         bool inputIsNativeToken = investmentDataByUser[msg.sender][investmentId].inputIsNativeToken;
         if(inputIsNativeToken){
-            TransferHelper.safeTransferETH(address(msg.sender),finalEntryAssetAmount);
+            payer.unwrapWETH9(finalEntryAssetAmount,address(msg.sender));
         }else {
             TransferHelper.safeTransferFrom(address(entryAsset), address(this), address(msg.sender), finalEntryAssetAmount);
         }
