@@ -16,12 +16,21 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
 
 
     struct PoolData {
+        address creator;
         address entryAsset;
         uint256 totalReceivedCurrency;
         address[] poolTokens;
         uint24[] poolTokenPercentages;
         uint256[] tokenBalances;
         uint8 poolSize;
+        uint256 minInvestmentLimit;
+        uint256 maxInvestmentLimit;
+        address feeAddress;
+        uint24 successFee;
+        uint256 totalSuccessFee;
+        uint24 managerFee;
+        uint256 totalManagerFee;
+        uint24 fee;
     }
 
     struct InvestmentData {
@@ -186,12 +195,21 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
     returns (PoolData memory)
     {
         PoolData memory pooData = PoolData({
-        entryAsset:entryAssetAddress,
+        creator: owner(),
+        entryAsset : entryAssetAddress,
         totalReceivedCurrency : totalReceivedCurrency,
         tokenBalances : poolTokenBalances,
         poolTokens : poolTokens,
         poolTokenPercentages : poolTokenPercentages,
-        poolSize : poolSize
+        poolSize : poolSize,
+        minInvestmentLimit : minInvestmentLimit,
+        maxInvestmentLimit : maxInvestmentLimit,
+        feeAddress : feeAddress,
+        successFee : successFee,
+        totalSuccessFee : totalSuccessFee,
+        managerFee : managerFee,
+        totalManagerFee : totalManagerFee,
+        fee : fee
         });
         return pooData;
     }

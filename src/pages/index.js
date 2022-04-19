@@ -4,7 +4,7 @@ import Pool from "../../artifacts/contracts/Pool.sol/Pool.json";
 import Quoter from "@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = "0xFF17dcAE00ab663a7f6AE8a6173964E29b9998F3";
+const contractAddress = "0x311b839Ea774D030933922fafbC5679A8dCc9172";
 const tokenAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"; // WMATIC TOKEN
 const quoterAddress = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"; // quoter
 
@@ -68,7 +68,7 @@ function HomePage() {
       const signer = provider.getSigner();
       const contract = new ethers.Contract(contractAddress, Pool.abi, signer);
 
-      const value = ethers.utils.parseUnits("0.1", "ether");
+      const value = ethers.utils.parseUnits("0.2", "ether");
       console.log(value.toString());
 
       const tokenContract = new ethers.Contract(
