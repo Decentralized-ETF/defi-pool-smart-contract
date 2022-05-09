@@ -4,8 +4,8 @@ import Pool from "../../artifacts/contracts/Pool.sol/Pool.json";
 import Quoter from "@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = "0x311b839Ea774D030933922fafbC5679A8dCc9172";
-const tokenAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"; // WMATIC TOKEN
+const contractAddress = "0x1b97c74cd711ee81c9afc83fc186e70dff88e174";
+const tokenAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"; //  TOKEN
 const quoterAddress = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"; // quoter
 
 function HomePage() {
@@ -68,7 +68,7 @@ function HomePage() {
       const signer = provider.getSigner();
       const contract = new ethers.Contract(contractAddress, Pool.abi, signer);
 
-      const value = ethers.utils.parseUnits("0.2", "ether");
+      const value = ethers.utils.parseUnits("3", 6);
       console.log(value.toString());
 
       const tokenContract = new ethers.Contract(
@@ -103,8 +103,6 @@ function HomePage() {
       const accounts = await provider.listAccounts();
       const signer = provider.getSigner();
       const contract = new ethers.Contract(contractAddress, Pool.abi, signer);
-const investmentData = await contract.getInvestment(accounts[0],0);
-console.log(investmentData);
 
       const tx = await contract.finishInvestment(0, {
         from: accounts[0],
@@ -115,6 +113,69 @@ console.log(investmentData);
     } catch (error) {
       console.log(error);
     }
+  };
+
+  const setManagerFee = async (e) => {
+    const web3Modal = new Web3Modal();
+    const connection = await web3Modal.connect();
+    const provider = new ethers.providers.Web3Provider(connection);
+    const accounts = await provider.listAccounts();
+    const signer = provider.getSigner();
+    const contract = new ethers.Contract(contractAddress, Pool.abi, signer);
+    /*
+    const p1 = await contract.pause({
+      from: accounts[0],
+      gasLimit: 3500000,
+    });
+    await p1.wait();
+    const tx = await contract.setManagerFee(1, {
+      from: accounts[0],
+      gasLimit: 3500000,
+    });
+    console.log(tx);
+    await tx.wait();
+*/
+    const fee = await contract.getManagerFee();
+    console.log(fee);
+    const p2 = await contract.unpause({
+      from: accounts[0],
+      gasLimit: 3500000,
+    });
+    await p2.wait();
+  };
+
+  const setFeeAddress = async (e) => {
+    const web3Modal = new Web3Modal();
+    const connection = await web3Modal.connect();
+    const provider = new ethers.providers.Web3Provider(connection);
+    const accounts = await provider.listAccounts();
+    const signer = provider.getSigner();
+    const contract = new ethers.Contract(contractAddress, Pool.abi, signer);
+/*
+    const p1 = await contract.pause({
+      from: accounts[0],
+      gasLimit: 3500000,
+    });
+    await p1.wait();
+
+ */
+    const tx = await contract.setFeeAddress(
+      "0x05688530Ee4f82ac928aDB5f591DE1CcF7cEb480",
+      {
+        from: accounts[0],
+        gasLimit: 3500000,
+      }
+    );
+    console.log(tx);
+    await tx.wait();
+
+    const fee = await contract.getFeeAddress();
+    console.log(fee);
+    const p2 = await contract.unpause({
+      from: accounts[0],
+      gasLimit: 3500000,
+    });
+    await p2.wait();
   };
 
   return (
@@ -129,6 +190,14 @@ console.log(investmentData);
 
       <p>
         <button onClick={refund}>Refund</button>
+      </p>
+
+      <p>
+        <button onClick={setManagerFee}>Set Manager Fee</button>
+      </p>
+
+      <p>
+        <button onClick={setFeeAddress}>Set Fee Address</button>
       </p>
     </div>
   );
