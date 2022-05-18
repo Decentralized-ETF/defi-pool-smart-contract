@@ -45,15 +45,15 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
 
     address internal panicAddress;// TODO Should remove in production
 
-    uint256 internal minInvestmentLimit;
-    uint256 internal maxInvestmentLimit;
+    uint256 public minInvestmentLimit;
+    uint256 public maxInvestmentLimit;
 
-    address internal feeAddress;
-    uint24 internal successFee = 0;
-    uint256 internal totalSuccessFee = 0;
-    uint24 internal managerFee = 0;
-    uint256 internal totalManagerFee = 0;
-    uint24 internal fee = 3000;
+    address public feeAddress;
+    uint24 public successFee = 0;
+    uint256 public totalSuccessFee = 0;
+    uint24 public managerFee = 0;
+    uint256 public totalManagerFee = 0;
+    uint24 public fee = 3000;
 
     uint24[] internal poolTokenPercentages;
     address[] internal poolTokens;
@@ -112,20 +112,8 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
         successFee = _successFee;
     }
 
-    function getSuccessFee() public view virtual returns (uint24) {
-        return successFee;
-    }
-
-    function getTotalSuccessFee() public onlyOwner view virtual returns (uint256) {
-        return totalSuccessFee;
-    }
-
     function setManagerFee(uint24 _managerFee) public onlyOwner whenPaused {
         managerFee = _managerFee;
-    }
-
-    function getTotalManagerFee() public onlyOwner view virtual returns (uint256) {
-        return totalManagerFee;
     }
 
     function getManagerFee() public view virtual returns (uint24) {
@@ -136,36 +124,16 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
         fee = _fee;
     }
 
-    function getFee() public view virtual returns (uint24) {
-        return fee;
-    }
-
     function setMinInvestmentLimit(uint256 _minInvestmentLimit) external onlyOwner whenPaused {
         minInvestmentLimit = _minInvestmentLimit;
-    }
-
-    function getMinInvestmentLimit() public view virtual returns (uint256) {
-        return minInvestmentLimit;
     }
 
     function setMaxInvestmentLimit(uint256 _maxInvestmentLimit) external onlyOwner whenPaused {
         maxInvestmentLimit = _maxInvestmentLimit;
     }
 
-    function getMaxInvestmentLimit() public view virtual returns (uint256) {
-        return maxInvestmentLimit;
-    }
-
     function setFeeAddress(address _feeAddress) external onlyOwner whenPaused {
         feeAddress = _feeAddress;
-    }
-
-    function getFeeAddress() public view virtual returns (address) {
-        return feeAddress;
-    }
-
-    function getPoolTokens() public view virtual returns (address[] memory) {
-        return poolTokens;
     }
 
     function getInvestment(address investor, uint16 investmentId)
@@ -217,11 +185,6 @@ contract BasePool is ReentrancyGuard, Ownable, Pausable {
     //TODO : should remove in production
     function setPanicAddress(address _panicAddress) public onlyOwner whenPaused {
         panicAddress = _panicAddress;
-    }
-
-    //TODO : should remove in production
-    function getPanicAddress() public view virtual returns (address) {
-        return panicAddress;
     }
 
     //TODO : should remove in production
