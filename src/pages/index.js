@@ -4,7 +4,7 @@ import Pool from "../../artifacts/contracts/Pool.sol/Pool.json";
 import Quoter from "@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json";
 import Erc20Token from "../abi/Erc20Token.json";
 
-const contractAddress = "0x1b97c74cd711ee81c9afc83fc186e70dff88e174";
+const contractAddress = "0xFc9b87E8370e673e31B222AfD07e150Ea84dE539";
 const tokenAddress = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"; //  TOKEN
 const quoterAddress = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"; // quoter
 
@@ -14,7 +14,6 @@ function HomePage() {
       const web3Modal = new Web3Modal();
       const connection = await web3Modal.connect();
       const provider = new ethers.providers.Web3Provider(connection);
-      const accounts = await provider.listAccounts();
       const signer = provider.getSigner();
       const contract = new ethers.Contract(contractAddress, Pool.abi, signer);
       const quoteContract = new ethers.Contract(
@@ -22,38 +21,25 @@ function HomePage() {
         Quoter.abi,
         signer
       );
-      const poolTokens = await contract.getPoolTokens();
-      const tokenDistributions = await contract.getPoolTokensDistributions();
-      const value = ethers.utils.parseUnits("0.1", "ether");
 
+      const poolData = await contract.getPoolData();
+      const { poolTokens, tokenBalances } = poolData;
       const outputs = [];
 
       for (let i = 0; i < poolTokens.length; i++) {
-        const inputAmount = value.mul(tokenDistributions[i]).div(100);
-
+        console.log(tokenBalances[i].toString());
         const quotedAmountOut =
           await quoteContract.callStatic.quoteExactInputSingle(
-            tokenAddress,
             poolTokens[i],
+            tokenAddress,
             3000,
-            inputAmount.toString(),
+            tokenBalances[i].toString(),
             0
           );
-        outputs.push(quotedAmountOut);
+        outputs.push(quotedAmountOut.toString());
       }
 
-      const tx = await contract.initSecureInvestment(
-        accounts[0],
-        value,
-        outputs,
-        {
-          from: accounts[0],
-          value,
-          gasLimit: 3500000,
-        }
-      );
-      console.log(tx);
-      await tx.wait();
+      console.log(outputs);
     } catch (error) {
       console.log(error);
     }
@@ -68,7 +54,7 @@ function HomePage() {
       const signer = provider.getSigner();
       const contract = new ethers.Contract(contractAddress, Pool.abi, signer);
 
-      const value = ethers.utils.parseUnits("3", 6);
+      const value = ethers.utils.parseUnits("0.1", 18);
       console.log(value.toString());
 
       const tokenContract = new ethers.Contract(
@@ -151,7 +137,7 @@ function HomePage() {
     const accounts = await provider.listAccounts();
     const signer = provider.getSigner();
     const contract = new ethers.Contract(contractAddress, Pool.abi, signer);
-/*
+    /*
     const p1 = await contract.pause({
       from: accounts[0],
       gasLimit: 3500000,
