@@ -39,15 +39,21 @@ library KedrLib {
 
     function getInvestment(InvestmentDataByUser storage _investmentDataByUser, address _investor, uint16 _investmentId)
     public
+    view
     returns (InvestmentData memory)
     {
-        return _investmentData.map[_investor][_investmentId];
+        return _investmentDataByUser.map[_investor][_investmentId];
     }
 
-    function getInvestments(InvestmentDataByUser storage _investmentData, address _investor)
+    function getInvestments(InvestmentDataByUser storage _investmentDataByUser, address _investor)
     public
+    view
     returns (InvestmentData[] memory)
     {
-        return _investmentData.map[_investor];
+        return _investmentDataByUser.map[_investor];
+    }
+
+    function addInvestment(InvestmentDataByUser storage _investmentDataByUser, address _investor, InvestmentData memory _investmentData) public {
+        _investmentDataByUser.map[_investor].push(_investmentData);
     }
 }
