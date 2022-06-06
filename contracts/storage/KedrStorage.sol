@@ -1,5 +1,6 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity >=0.7.6;
+import "..\libs\KedrLib.sol";
 
 contract KedrStorage {
     address public owner = msg.sender;
@@ -7,7 +8,7 @@ contract KedrStorage {
 
     uint256 public minInvestmentLimit = 0;
 
-    address public feeReceipient = msg.sender;
+    address public feeRecepient = msg.sender;
 
     uint24 public successFeeInBp = 100;
     uint256 public totalSuccessFeeCollected = 0;
@@ -20,16 +21,6 @@ contract KedrStorage {
 
     uint256[] public poolTokenBalances;
     uint256 public totalReceivedEntryAsset = 0;
-
-    struct InvestmentData {
-        uint256 receivedEntryAsset;
-        uint256[] tokenBalances;
-        bool rebalanceEnabled;
-        bool active;
-        bool inputIsNativeToken;
-    }
-
-    mapping(address => InvestmentData[]) private investmentDataByUser;
 
     modifier onlyLatestVersion() {
         require(msg.sender == latestVersion);
@@ -79,8 +70,8 @@ contract KedrStorage {
         successFeeInBp = _successFeeInBp;
     }
 
-    function setFeeReceipient(address _feeReceipient) external onlyLatestVersion {
-        feeReceipient = _feeReceipient;
+    function setFeeRecepient(address _feeReceipient) external onlyLatestVersion {
+        feeRecepient = _feeRecepient;
     }
 
     function setPoolTokenDistributionsInBP(uint24[] memory _poolTokenDistributionsInBP)  
