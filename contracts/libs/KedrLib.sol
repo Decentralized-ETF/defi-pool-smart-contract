@@ -33,23 +33,21 @@ library KedrLib {
         bool inputIsNativeToken;
     }
 
-    mapping(address => InvestmentData[]) InvestmentDataByUser;
-
-    function getInvestment(InvestmentDataByUser storage _investmentData,address _investor, uint16 _investmentId)
-    public
-    view
-    returns (InvestmentData memory)
-    {
-        require(_investmentId >= 0, "invalid investment Id");
-
-        return _investmentData[_investor][_investmentId];
+    struct InvestmentDataByUser {
+        mapping(address => InvestmentData[]) map;
     }
 
-    function getInvestments(InvestmentDataByUser storage _investmentData,address _investor)
+    function getInvestment(InvestmentDataByUser storage _investmentDataByUser, address _investor, uint16 _investmentId)
     public
-    view
+    returns (InvestmentData memory)
+    {
+        return _investmentData.map[_investor][_investmentId];
+    }
+
+    function getInvestments(InvestmentDataByUser storage _investmentData, address _investor)
+    public
     returns (InvestmentData[] memory)
     {
-        return _investmentData[_investor];
+        return _investmentData.map[_investor];
     }
 }
