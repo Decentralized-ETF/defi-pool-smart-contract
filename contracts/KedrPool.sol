@@ -2,8 +2,11 @@
 pragma solidity >=0.7.6;
 
 import {BaseKedrPool} from "./BaseKedrPool.sol";
+import {DefiAdapter} from "./adapters/DefiAdapter.sol";
 
 contract KedrPool is BaseKedrPool {
+
+    DefiAdapter defiAdapter;
 
     constructor(address _storageAddress) BaseKedrPool(_storageAddress)  {
 
@@ -15,5 +18,9 @@ contract KedrPool is BaseKedrPool {
 
     function finishInvestment(uint16 _investmentId) external {
 
+    }
+
+    function updateAdapater(address adapterAddress) public {
+        defiAdapter = DefiAdapter(adapterAddress);
     }
 }
