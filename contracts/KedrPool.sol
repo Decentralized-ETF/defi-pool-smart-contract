@@ -8,12 +8,17 @@ contract KedrPool is BaseKedrPool {
 
     DefiAdapter defiAdapter;
 
-    constructor(address _storageAddress) BaseKedrPool(_storageAddress)  {
+    constructor(address _storageAddress, address _mainTokenAddress) BaseKedrPool(_storageAddress, _mainTokenAddress)  {
 
     }
 
     function initInvestment(address _investor, uint256 _amount) external {
+        require(_amount >= kedrStorage.minInvestmentLimit(), "amount is too small");
+        uint256 theManagerFee = (_amount * kedrStorage.managerFeeInBp()) / 100;
+        uint256 investmentAmount = amount - theManagerFee;
 
+        uint256[] memory tokenBalances = new uint256[](poolSize);
+        totalReceivedCurrency = totalReceivedCurrency + investmentAmount;
     }
 
     function finishInvestment(uint16 _investmentId) external {
