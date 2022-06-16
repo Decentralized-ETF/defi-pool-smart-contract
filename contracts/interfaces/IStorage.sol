@@ -1,20 +1,12 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity >=0.7.6;
 
-import "./KedrStorage.sol";
 
-interface IKedrStorage {
-    function upgradeVersion(address _newVersion) external;
+interface IStorage {
 
-    function getInvestment(address _investor, uint16 _investmentId)
-    public
-    view
-    returns (InvestmentData memory);
+    function getInvestment(address _investor, uint16 _investmentId) external;
 
-    function getInvestments(address _investor)
-    public
-    view
-    returns (InvestmentData[] memory);
+    function getInvestments(address _investor) external;
 
     function setMinInvestmentLimit(uint256 _minInvestmentLimit) external;
 
@@ -26,5 +18,5 @@ interface IKedrStorage {
 
     function setSuccessFeeInBp(uint24 _successFeeInBp) external;
 
-    function setFeeRecepient(address _feeRecepient) external;
+    function setFeeRecipient(address _feeRecipient) external;
 }

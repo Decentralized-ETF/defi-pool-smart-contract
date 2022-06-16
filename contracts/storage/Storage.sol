@@ -3,7 +3,7 @@ pragma solidity >=0.7.6;
 
 import {KedrLib} from "../libs/KedrLib.sol";
 
-contract KedrStorage {
+contract Storage {
     KedrLib.InvestmentDataByUser private investmentDataByUser;
 
     address public owner;
@@ -84,7 +84,7 @@ contract KedrStorage {
         KedrLib.addInvestment(investmentDataByUser,_investor,_investmentData);
     }
 
-    function getInvestment(address _investor, uint16 _investmentId) external view (KedrLib.InvestmentData memory) {
-        KedrLib.addInvestment(investmentDataByUser,_investor,_investmentData);
+    function getInvestment(address _investor, uint16 _investmentId) external view returns (KedrLib.InvestmentData memory) {
+       return  KedrLib.getInvestment(investmentDataByUser,_investor,_investmentId);
     }
 }
