@@ -12,16 +12,17 @@ contract Storage {
     address public feeRecipient = msg.sender;
 
     uint24 public successFeeInBp = 100;
-    uint256 public totalSuccessFeeCollected = 0;
+    uint256 public totalSuccessFeeAmountCollected = 0;
 
     uint24 public managerFeeInBp = 100;
-    uint256 public totalManagerFeeCollected = 0;
+    uint256 public totalManagerFeeAmountCollected = 0;
 
     uint24[] public poolTokenDistributionsInBP;
     address[] public poolTokens;
+    uint8 public poolSize;
 
     uint256[] public poolTokenBalances;
-    uint256 public totalReceivedEntryAsset = 0;
+    uint256 public totalReceivedEntryAssetAmount = 0;
 
     modifier onlyOwner() {
         require(msg.sender == owner);
@@ -29,16 +30,18 @@ contract Storage {
     }
 
     constructor(
-        address _owner,
+        address _feeRecipient,
         address[] memory _poolTokens,
         uint24[] memory _poolTokenDistributionsInBP) {
-        owner = _owner;
         poolTokens = _poolTokens;
         poolTokenDistributionsInBP = _poolTokenDistributionsInBP;
+        poolSize = uint8(poolTokens.length);
+        poolTokenBalances = new uint256[](poolSize);
+        feeRecipient = _feeRecipient;
     }
 
     function upgradeOwner(address _newOwner) public {
-        require(msg.sender == owner);
+        require(owner == address(0));
         owner = _newOwner;
     }
 
@@ -46,12 +49,24 @@ contract Storage {
         minInvestmentLimit = _minInvestmentLimit;
     }
 
-    function increaseTotalReceivedEntryAsset(uint256 _amount) external onlyOwner {
-        totalReceivedEntryAsset += _amount;
+    function increaseTotalSuccessFeeAmountCollected(uint256 _amount) external onlyOwner {
+        totalSuccessFeeAmountCollected += _amount;
     }
 
-    function decreaseTotalReceivedEntryAsset(uint256 _amount) external onlyOwner {
-        totalReceivedEntryAsset -= _amount;
+    function increaseTotalManagerFeeAmountCollected(uint256 _amount) external onlyOwner {
+        totalManagerFeeAmountCollected += _amount;
+    }
+
+    function decreaseTotalReceivedEntryAssetAmount(uint256 _amount) external onlyOwner {
+        totalReceivedEntryAssetAmount -= _amount;
+    }
+
+    function increasePoolTokenBalanceAmount(uint16 _tokenIndex, uint256 _amount) external onlyOwner {
+        poolTokenBalances[_tokenIndex] += _amount;
+    }
+
+    function decreasePoolTokenBalanceAmount(uint16 _tokenIndex, uint256 _amount) external onlyOwner {
+        poolTokenBalances[_tokenIndex] -= _amount;
     }
 
     function setManagerFeeInBp(uint24 _managerFeeInBp) external onlyOwner {
@@ -62,7 +77,7 @@ contract Storage {
         successFeeInBp = _successFeeInBp;
     }
 
-    function setFeeRecepient(address _feeRecipient) external onlyOwner {
+    function setFeeRecipient(address _feeRecipient) external onlyOwner {
         feeRecipient = _feeRecipient;
     }
 
@@ -77,14 +92,66 @@ contract Storage {
     view
     returns (KedrLib.InvestmentData[] memory)
     {
-        return KedrLib.getInvestments(investmentDataByUser,_investor);
+        return KedrLib.getInvestments(investmentDataByUser, _investor);
     }
 
-    function addInvestment(address _investor, KedrLib.InvestmentData memory _investmentData) external {
-        KedrLib.addInvestment(investmentDataByUser,_investor,_investmentData);
+    function startInvestment(address _investor,
+        uint256 _receivedEntryAssetAmount,
+        uint256[] memory _tokenBalanceAmounts) external {
+        totalReceivedEntryAssetAmount += _receivedEntryAssetAmount;
+        KedrLib.startInvestment(
+            investmentDataByUser,
+            _investor,
+            _receivedEntryAssetAmount,
+            _tokenBalanceAmounts
+        );
     }
 
-    function getInvestment(address _investor, uint16 _investmentId) external view returns (KedrLib.InvestmentData memory) {
-       return  KedrLib.getInvestment(investmentDataByUser,_investor,_investmentId);
+    function updateInvestment(address _investor,
+        uint16 _investmentId,
+        uint256 _receivedEntryAssetAmount,
+        uint256[] memory _tokenBalanceAmounts,
+        bool _active) external {
+        KedrLib.updateInvestment(investmentDataByUser,
+    _investor, _investmentId,_receivedEntryAssetAmount,_tokenBalanceAmounts,_active);
+    }
+
+    function getInvestment(address _investor, uint16 _investmentId) external view
+    returns (KedrLib.InvestmentData memory) {
+        return KedrLib.getInvestment(investmentDataByUser, _investor, _investmentId);
+    }
+
+    function calculateManagerFeeAmount(uint256 _inputAmount) external
+    returns (uint256 managerFeeAmount, uint256 finalAmount){
+        managerFeeAmount = (_inputAmount * managerFeeInBp) / 100;
+        finalAmount = _inputAmount - managerFeeAmount;
+    }
+
+    function calculateSuccessFeeAmount(uint256 _inputAmount) external
+    returns (uint256 successFeeAmount, uint256 finalAmount){
+        successFeeAmount = (_inputAmount * successFeeInBp) / 100;
+        finalAmount = _inputAmount - successFeeAmount;
+    }
+
+    function getPoolSize() external
+    returns (uint8){
+        return poolSize;
+    }
+
+    function getMinInvestmentLimit() external view
+    returns (uint256){
+        return minInvestmentLimit;
+    }
+
+    function getTotalSuccessFeeAmountCollected() external view returns(uint256) {
+       return totalSuccessFeeAmountCollected;
+    }
+
+    function getTotalManagerFeeAmountCollected() external view returns(uint256) {
+       return totalManagerFeeAmountCollected;
+    }
+
+    function getTotalReceivedEntryAssetAmount() external view returns(uint256)  {
+        return totalReceivedEntryAssetAmount;
     }
 }
