@@ -133,6 +133,10 @@ contract Storage {
         finalAmount = _inputAmount - successFeeAmount;
     }
 
+    function getFeeRecipient() external returns (address) {
+        return feeRecipient;
+    }
+
     function getPoolSize() external
     returns (uint8){
         return poolSize;

@@ -50,4 +50,6 @@ interface IStorage {
     function increasePoolTokenBalanceAmount(uint16 _tokenIndex, uint256 _amount) external;
 
     function decreasePoolTokenBalanceAmount(uint16 _tokenIndex, uint256 _amount) external;
+
+    function getFeeRecipient() external returns (address);
 }

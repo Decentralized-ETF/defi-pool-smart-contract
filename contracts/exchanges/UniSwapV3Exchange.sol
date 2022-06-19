@@ -6,9 +6,11 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 contract UniSwapV3Exchange {
     ISwapRouter internal immutable swapRouterV3;
     uint24 public fee;
+    address swapRouterContractAddress;
 
     constructor(address _swapRouterContractAddress, uint24 _fee) {
         swapRouterV3 = ISwapRouter(_swapRouterContractAddress);
+        swapRouterContractAddress = _swapRouterContractAddress;
         fee = _fee;
     }
 
