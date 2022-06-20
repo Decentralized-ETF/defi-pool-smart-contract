@@ -2,8 +2,10 @@
 pragma solidity >=0.7.6;
 
 import {KedrLib} from "../libs/KedrLib.sol";
-
+import  "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract Storage {
+    using SafeMath for uint256;
+
     KedrLib.InvestmentDataByUser private investmentDataByUser;
 
     address public owner;
@@ -123,14 +125,14 @@ contract Storage {
 
     function calculateManagerFeeAmount(uint256 _inputAmount) external
     returns (uint256 managerFeeAmount, uint256 finalAmount){
-        managerFeeAmount = (_inputAmount * managerFeeInBp) / 100;
-        finalAmount = _inputAmount - managerFeeAmount;
+        managerFeeAmount = _inputAmount.mul(managerFeeInBp).div(100);
+        finalAmount = _inputAmount.sub(managerFeeAmount);
     }
 
     function calculateSuccessFeeAmount(uint256 _inputAmount) external
     returns (uint256 successFeeAmount, uint256 finalAmount){
-        successFeeAmount = (_inputAmount * successFeeInBp) / 100;
-        finalAmount = _inputAmount - successFeeAmount;
+        successFeeAmount = _inputAmount.mul(successFeeInBp).div(100);
+        finalAmount = _inputAmount.sub(successFeeAmount);
     }
 
     function getFeeRecipient() external returns (address) {
