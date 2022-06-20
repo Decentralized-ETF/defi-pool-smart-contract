@@ -2,11 +2,11 @@
 pragma solidity >=0.7.6;
 pragma experimental ABIEncoderV2;
 
-import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
+import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol';
 
 contract PancakeSwapExchange {
 
-    IUniswapV2Router02 public immutable router;
+    IUniswapV2Router01 public immutable router;
     address swapRouterContractAddress;
 
     constructor(address _swapRouterContractAddress) {
@@ -14,7 +14,7 @@ contract PancakeSwapExchange {
         swapRouterContractAddress = _swapRouterContractAddress;
     }
 
-    function getRouterContractAddress() external view returns (address ){
+    function getRouterContractAddress() external view returns (address){
         return swapRouterContractAddress;
     }
 
