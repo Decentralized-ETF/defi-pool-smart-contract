@@ -12,12 +12,15 @@ contract BaseKedrPool is Initializable {
     IERC20 mainErc20Token;
     DefiAdapter defiAdapter;
 
-    function initialize(address _storageAddress, address _mainTokenAddress) public virtual initializer {
+    function initialize(address _storageAddress,
+        address _mainTokenAddress,
+        address _defiAdapterAddress) public virtual initializer {
         kedrStorage = IStorage(_storageAddress);
         mainErc20Token = IERC20(_mainTokenAddress);
+        defiAdapter = DefiAdapter(_defiAdapterAddress);
     }
 
-    function updateAdapater(address adapterAddress) public {
-        defiAdapter = DefiAdapter(adapterAddress);
+    function updateAdapater(address _adapterAddress) public {
+        defiAdapter = DefiAdapter(_adapterAddress);
     }
 }

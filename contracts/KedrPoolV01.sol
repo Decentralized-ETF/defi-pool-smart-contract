@@ -8,8 +8,11 @@ import {KedrLib} from "./libs/KedrLib.sol";
 
 contract KedrPool is BaseKedrPool {
 
-    function initialize(address _storageAddress, address _mainTokenAddress) public override initializer {
-        BaseKedrPool.initialize(_storageAddress, _mainTokenAddress);
+    function initialize(
+        address _storageAddress,
+        address _mainTokenAddress,
+        address _defiAdapterAddress) public override initializer {
+        BaseKedrPool.initialize(_storageAddress, _mainTokenAddress,_defiAdapterAddress);
     }
 
     function initInvestment(address _investor, uint256 _amount) external {

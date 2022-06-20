@@ -10,21 +10,48 @@ contract DefiAdapter {
     IUniSwapV2Exchange uniSwapV2Exchange;
     IPancakeSwapExchange pancakeSwapExchange;
 
-    constructor(address uniSwapV3ExchangeAddress, address uniSwapV2ExchangeAddress, address pancakeSwapExchangeAddress) {
-        uniSwapV3Exchange = IUniSwapV3Exchange(uniSwapV3ExchangeAddress);
-        uniSwapV2Exchange = IUniSwapV2Exchange(uniSwapV2ExchangeAddress);
-        pancakeSwapExchange = IPancakeSwapExchange(pancakeSwapExchangeAddress);
+    constructor(address _uniSwapV3ExchangeAddress, address _uniSwapV2ExchangeAddress, address _pancakeSwapExchangeAddress) {
+        uniSwapV3Exchange = IUniSwapV3Exchange(_uniSwapV3ExchangeAddress);
+        uniSwapV2Exchange = IUniSwapV2Exchange(_uniSwapV2ExchangeAddress);
+        pancakeSwapExchange = IPancakeSwapExchange(_pancakeSwapExchangeAddress);
     }
 
-    function getExchangeAddress(string memory name) external returns (address  exchangeAddress, address  exchangeRouterAddress) {
-        if(keccak256(abi.encodePacked(name))==keccak256(abi.encodePacked("uniswap3"))){
-        exchangeAddress = address(uniSwapV3Exchange);
+    function getExchangeAddress(string memory _name) external view returns (address exchangeAddress, address exchangeRouterAddress) {
+        if (keccak256(abi.encodePacked(_name)) == keccak256(abi.encodePacked("uniswap3"))) {
+            exchangeAddress = address(uniSwapV3Exchange);
             exchangeRouterAddress = uniSwapV3Exchange.getRouterContractAddress();
-        } else if(keccak256(abi.encodePacked(name))==keccak256(abi.encodePacked("uniswap2"))){
+        } else if (keccak256(abi.encodePacked(_name)) == keccak256(abi.encodePacked("uniswap2"))) {
             exchangeAddress = address(uniSwapV2Exchange);
             exchangeRouterAddress = uniSwapV2Exchange.getRouterContractAddress();
         }
         exchangeAddress = address(pancakeSwapExchange);
         exchangeRouterAddress = pancakeSwapExchange.getRouterContractAddress();
+    }
+
+    function swap(address _exchangeAddress,
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _timestamp,
+        uint256 _amount,
+        address _recipient) external returns (uint256){
+        if (_exchangeAddress == address(uniSwapV3Exchange)) {
+            return uniSwapV3Exchange.swap(_tokenIn,
+                _tokenOut,
+                _timestamp,
+                _amount,
+                _recipient);
+
+        } else if (_exchangeAddress == address(uniSwapV2Exchange)) {
+            return uniSwapV2Exchange.swap(_tokenIn,
+                _tokenOut,
+                _timestamp,
+                _amount,
+                _recipient);
+        }
+        return pancakeSwapExchange.swap(_tokenIn,
+            _tokenOut,
+            _timestamp,
+            _amount,
+            _recipient);
     }
 }

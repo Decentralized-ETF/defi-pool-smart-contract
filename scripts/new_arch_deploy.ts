@@ -31,8 +31,18 @@ async function main() {
   await pancakeSwapExchange.deployed();
   console.log(
     "PancakeSwapExchange contract address:",
-    uniSwapV2Exchange.address
+    pancakeSwapExchange.address
   );
+
+  const DefiAdapter = await ethers.getContractFactory("DefiAdapter");
+  const defiAdapter = await DefiAdapter.deploy(
+    uniSwapV3Exchange.address,
+    uniSwapV2Exchange.address,
+    pancakeSwapExchange.address
+  );
+
+  await defiAdapter.deployed();
+  console.log("DefiAdapter contract address:", defiAdapter.address);
 
   const poolTokens = [
     "0xd6df932a45c0f255f85145f286ea0b292b21c90b",
@@ -59,7 +69,11 @@ async function main() {
 
   const kedrPoolV01 = await upgrades.deployProxy(
     KedrPoolV01,
-    [storageContractAddress, "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"],
+    [
+      storageContractAddress,
+      "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+      defiAdapter.address,
+    ],
     {
       initializer: "initialize",
     }
