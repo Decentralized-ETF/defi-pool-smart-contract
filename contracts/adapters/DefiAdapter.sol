@@ -10,9 +10,21 @@ contract DefiAdapter {
     IUniSwapV2Exchange uniSwapV2Exchange;
     IPancakeSwapExchange pancakeSwapExchange;
 
-    constructor(address uniSwapV3ExchangeAddress,address uniSwapV2ExchangeAddress,address pancakeSwapExchangeAddress) {
+    constructor(address uniSwapV3ExchangeAddress, address uniSwapV2ExchangeAddress, address pancakeSwapExchangeAddress) {
         uniSwapV3Exchange = IUniSwapV3Exchange(uniSwapV3ExchangeAddress);
         uniSwapV2Exchange = IUniSwapV2Exchange(uniSwapV2ExchangeAddress);
         pancakeSwapExchange = IPancakeSwapExchange(pancakeSwapExchangeAddress);
+    }
+
+    function getExchangeAddress(string memory name) external returns (address  exchangeAddress, address  exchangeRouterAddress) {
+        if(keccak256(abi.encodePacked(name))==keccak256(abi.encodePacked("uniswap3"))){
+        exchangeAddress = address(uniSwapV3Exchange);
+            exchangeRouterAddress = uniSwapV3Exchange.getRouterContractAddress();
+        } else if(keccak256(abi.encodePacked(name))==keccak256(abi.encodePacked("uniswap2"))){
+            exchangeAddress = address(uniSwapV2Exchange);
+            exchangeRouterAddress = uniSwapV2Exchange.getRouterContractAddress();
+        }
+        exchangeAddress = address(pancakeSwapExchange);
+        exchangeRouterAddress = pancakeSwapExchange.getRouterContractAddress();
     }
 }

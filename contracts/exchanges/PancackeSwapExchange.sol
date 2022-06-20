@@ -14,6 +14,10 @@ contract PancakeSwapExchange {
         swapRouterContractAddress = _swapRouterContractAddress;
     }
 
+    function getRouterContractAddress() external view returns (address ){
+        return swapRouterContractAddress;
+    }
+
     function swap(
         address _tokenIn,
         address _tokenOut,

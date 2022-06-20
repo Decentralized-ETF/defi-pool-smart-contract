@@ -7,4 +7,6 @@ interface IUniSwapV3Exchange {
         uint256 _timestamp,
         uint256 _amount,
         address _recipient) external returns (uint256);
+
+    function getRouterContractAddress() external view returns (address);
 }

@@ -21,6 +21,19 @@ async function main() {
   await uniSwapV2Exchange.deployed();
   console.log("UniSwapV2Exchange contract address:", uniSwapV2Exchange.address);
 
+  const PancakeSwapExchange = await ethers.getContractFactory(
+    "PancakeSwapExchange"
+  );
+  const pancakeSwapExchange = await PancakeSwapExchange.deploy(
+    "0x10ED43C718714eb63d5aA57B78B54704E256024E"
+  );
+
+  await pancakeSwapExchange.deployed();
+  console.log(
+    "PancakeSwapExchange contract address:",
+    uniSwapV2Exchange.address
+  );
+
   const poolTokens = [
     "0xd6df932a45c0f255f85145f286ea0b292b21c90b",
     "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
