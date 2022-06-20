@@ -29,7 +29,7 @@ contract UniSwapV2Exchange {
         path[0] = _tokenIn;
         path[1] = _tokenOut;
         uint256[] minimumAmountOut = router.getAmountsOut(_amount, path);
-        uint256[] amounts = router.swapExactTokensForTokens(_amount, minimumAmountOut, path, _recipient, _timestamp);
+        uint256[] amounts = router.swapExactTokensForTokens(_amount, minimumAmountOut[1], path, _recipient, _timestamp);
         return amounts[1];
     }
 
