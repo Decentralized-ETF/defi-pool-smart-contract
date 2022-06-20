@@ -23,8 +23,14 @@ contract PancakeSwapExchange {
         address _tokenOut,
         uint256 _timestamp,
         uint256 _amount,
-        address _recipient) external  returns (uint256) {
+        address _recipient) external returns (uint256) {
 
+        path = new address[](2);
+        path[0] = _tokenIn;
+        path[1] = _tokenOut;
+        uint256[] minimumAmountOut = router.getAmountsOut(_amount, path);
+        uint256[] amounts = router.swapExactTokensForTokens(_amount, minimumAmountOut, path, _recipient, _timestamp);
+        return amounts[1];
     }
 
 }
