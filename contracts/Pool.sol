@@ -206,7 +206,6 @@ contract Pool is BasePool {
     }
 
     receive() external payable {
-        require(msg.value > 0, "send matic");
-        initInvestment(msg.sender, msg.value,msg.value > 0);
+        initInvestment(msg.sender, msg.value, true);
     }
 }
