@@ -2,15 +2,16 @@
 pragma solidity >=0.7.6;
 
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "../interfaces/ISwapper.sol";
 
-contract UniSwapV3Exchange {
-    ISwapRouter internal immutable swapRouterV3;
+contract SwapperV3 is ISwapper {
+    ISwapRouter internal immutable router;
     uint24 public fee;
-    address swapRouterContractAddress;
+    address routerAddress;
 
-    constructor(address _swapRouterContractAddress, uint24 _fee) {
-        swapRouterV3 = ISwapRouter(_swapRouterContractAddress);
-        swapRouterContractAddress = _swapRouterContractAddress;
+    constructor(address _routerAddress, uint24 _fee) {
+        router = ISwapRouter(_routerAddress);
+        routerAddress = _routerAddress;
         fee = _fee;
     }
 

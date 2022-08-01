@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity >=0.7.6;
 
-interface IUniSwapV3Exchange {
+interface ISwapper {
     function swap(address _tokenIn,
         address _tokenOut,
         uint256 _timestamp,

@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity >=0.7.6;
 
-import {KedrLib} from "../libs/KedrLib.sol";
+import "../libraries/KedrLib.sol";
 
 interface IStorage {
 

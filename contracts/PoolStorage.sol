@@ -1,9 +1,10 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity >=0.7.6;
 
-import {KedrLib} from "../libs/KedrLib.sol";
-import  "@openzeppelin/contracts/utils/math/SafeMath.sol";
-contract Storage {
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "./libraries/KedrLib.sol";
+
+contract PoolStorage {
     using SafeMath for uint256;
 
     KedrLib.InvestmentDataByUser private investmentDataByUser;
@@ -123,23 +124,23 @@ contract Storage {
         return KedrLib.getInvestment(investmentDataByUser, _investor, _investmentId);
     }
 
-    function calculateManagerFeeAmount(uint256 _inputAmount) external
+    function calculateManagerFeeAmount(uint256 _inputAmount) external view
     returns (uint256 managerFeeAmount, uint256 finalAmount){
         managerFeeAmount = _inputAmount.mul(managerFeeInBp).div(100);
         finalAmount = _inputAmount.sub(managerFeeAmount);
     }
 
-    function calculateSuccessFeeAmount(uint256 _inputAmount) external
+    function calculateSuccessFeeAmount(uint256 _inputAmount) external view
     returns (uint256 successFeeAmount, uint256 finalAmount){
         successFeeAmount = _inputAmount.mul(successFeeInBp).div(100);
         finalAmount = _inputAmount.sub(successFeeAmount);
     }
 
-    function getFeeRecipient() external returns (address) {
+    function getFeeRecipient() external view returns (address) {
         return feeRecipient;
     }
 
-    function getPoolSize() external
+    function getPoolSize() external view
     returns (uint8){
         return poolSize;
     }

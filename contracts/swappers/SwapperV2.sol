@@ -1,11 +1,10 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity >=0.7.6;
-pragma experimental ABIEncoderV2;
 
-import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol';
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "../interfaces/ISwapper.sol";
 
-contract PancakeSwapExchange {
-
+contract SwapperV2 is ISwapper {
     IUniswapV2Router01 public immutable router;
     address swapRouterContractAddress;
 
@@ -32,5 +31,4 @@ contract PancakeSwapExchange {
         uint256[] amounts = router.swapExactTokensForTokens(_amount, minimumAmountOut[1], path, _recipient, _timestamp);
         return amounts[1];
     }
-
 }

@@ -3,8 +3,7 @@ pragma solidity >=0.7.6;
 pragma experimental ABIEncoderV2;
 
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "./BasePool.sol";
+import "./base/BasePool.sol";
 
 contract Pool is BasePool {
     ISwapRouter internal immutable swapRouter;
