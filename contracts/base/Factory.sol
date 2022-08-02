@@ -1,9 +1,8 @@
 pragma solidity >=0.7.6;
 
-import '@openzeppelin/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/IPool.sol";
-import "../pools/DynamicPool.sol";
 import "../pools/Pool.sol";
 
 contract Factory is Ownable, ReentrancyGuard {
@@ -21,16 +20,25 @@ contract Factory is Ownable, ReentrancyGuard {
         return pools.length;
     }
 
-    function createPool(IPool.PoolDetails poolDetails) external returns (address pool) {
-        bytes memory bytecode = type(Pool).creationCode;
+    function createPool(IPool.PoolDetails poolDetails)
+        external
+        returns (address pool)
+    {
         uint256 poolId = pools.length + 1;
-        bytes32 salt = keccak256(poolId);
+        bytes memory bytecode = abi.encodePacked(
+            type(Pool).creationCode,
+            poolId // constructor parameter
+        );
+
         assembly {
-            pool := create2(0, add(bytecode, 32), mload(bytecode), salt)
+            pool := create2(0, add(bytecode, 32), mload(bytecode))
+            if iszero(extcodesize(pool)) {
+                revert(0, 0)
+            }
         }
-        IPool(pool).initialize(token0, token1, chain0, chain1);
+
+        IPool(pool).initialize(poolDetails);
         pools.push(pool);
         emit PoolCreated(pool, poolId);
     }
-
 }

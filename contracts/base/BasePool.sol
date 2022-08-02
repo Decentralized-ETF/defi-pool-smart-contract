@@ -12,14 +12,9 @@ import "../libraries/KedrConstants.sol";
 
 abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
     uint64 public poolId;
-    uint8 public entryFee;
-    uint8 public successFee;
-    uint256 public minInvestment;
-    uint24[] internal weights;
-    address[] internal assets;
     address public factory;
-    address public poolStorage;
     IPoolStorage internal PoolStorage;
+    PoolDetails public poolDetails;
 
     constructor(uint64 _poolId) {
         factory = msg.sender;
@@ -33,21 +28,13 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
 
     // called once by the factory at time of deployment
     function initialize(
-        address _poolStorage,
-        address[] calldata _assets,
-        uint24[] calldata _weights,
-        uint256 _minInvestment,
-        uint8 _entryFee,
-        uint8 _successFee
+        PoolDetails calldata _poolDetails
     ) external onlyFactory {
-        require(_assets.length == _weights.length, "INVALID_ALLOCATIONS");
-        assets = _assets;
-        weights = _weights;
-        minInvestment = _minInvestment;
-        poolStorage = _poolStorage;
-        PoolStorage = IPoolStorage(_poolStorage);
-        setSuccessFee(_successFee);
-        setEntryFee(_entryFee);
+        require(_poolDetails.assets.length == _poolDetails.weights.length, "INVALID_ALLOCATIONS");
+        poolDetails = _poolDetails;
+        PoolStorage = IPoolStorage(_poolDetails.poolStorage);
+        setSuccessFee(_poolDetails.successFee);
+        setEntryFee(_poolDetails.entryFee);
     }
 
     function pause() public onlyOwner {
@@ -63,18 +50,18 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
     }
 
     function poolSize() external view returns (uint256) {
-        return assets.length;
+        return poolDetails.assets.length;
     }
 
     /**
      * @dev this function updates allocation weights for all assets
      */
     function updateAllocations(uint24[] memory _weights) external onlyOwner {
-        require(_weights.length == assets.length, "WRONG_LENGTH");
-        weights = _weights;
+        require(_weights.length == poolDetails.assets.length, "WRONG_LENGTH");
+        poolDetails.weights = _weights;
     }
 
-    function setSuccessFee(uint8 _successFee) public onlyOwner whenPaused {
+    function setSuccessFee(uint16 _successFee) public onlyOwner whenPaused {
         require(
             _successFee >= KedrConstants._MIN_SUCCESS_FEE,
             "TOO_SMALL_NUMERATOR"
@@ -83,10 +70,10 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
             _successFee <= KedrConstants._FEE_DENOMINATOR,
             "TOO_BIG_NUMERATOR"
         );
-        successFee = _successFee;
+        poolDetails.successFee = _successFee;
     }
 
-    function setEntryFee(uint8 _entryFee) public onlyOwner whenPaused {
+    function setEntryFee(uint16 _entryFee) public onlyOwner whenPaused {
         require(
             _entryFee >= KedrConstants._MIN_SUCCESS_FEE,
             "TOO_SMALL_NUMERATOR"
@@ -95,7 +82,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
             _entryFee <= KedrConstants._FEE_DENOMINATOR,
             "TOO_BIG_NUMERATOR"
         );
-        entryFee = _entryFee;
+        poolDetails.entryFee = _entryFee;
     }
 
     function setMinInvestment(uint256 _minInvestment)
@@ -103,19 +90,27 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
         onlyOwner
         whenPaused
     {
-        minInvestment = _minInvestment;
+        poolDetails.minInvestment = _minInvestment;
     }
 
-    function details() public view returns (PoolDetails memory) {
-        PoolDetails memory data = PoolDetails({
-            entryAsset: PoolStorage.entryAsset(),
-            minInvestment: minInvestment,
-            assets: assets,
-            weights: weights,
-            entryFee: entryFee,
-            successFee: successFee
-        });
-        return data;
+    function details() external view returns (PoolDetails memory) {
+        return poolDetails;
+    }
+
+    function entryFee() external view returns (uint16) {
+        return poolDetails.entryFee;
+    }
+
+    function successFee() external view returns (uint16) {
+        return poolDetails.successFee;
+    }
+
+    function minInvestment() external view returns (uint256) {
+        return poolDetails.minInvestment;
+    }
+
+    function poolStorage() external view returns (address) {
+        return poolDetails.poolStorage;
     }
 
     /**
