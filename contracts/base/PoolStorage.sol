@@ -2,29 +2,17 @@
 pragma solidity >=0.7.6;
 
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import '../libraries/KedrLib.sol';
 
-contract PoolStorage {
+contract PoolStorage is ERC20 {
     using SafeMath for uint256;
 
-    KedrLib.InvestmentDataByUser private investmentDataByUser;
-
     address public owner;
-    uint256 public minInvestmentLimit = 0;
-
-    address public feeRecipient = msg.sender;
-
-    uint24 public successFeeInBp = 100;
+    address public feeReceiver;
+    address public entryAsset;
     uint256 public totalSuccessFeeAmountCollected = 0;
-
-    uint24 public managerFeeInBp = 100;
-    uint256 public totalManagerFeeAmountCollected = 0;
-
-    uint24[] public poolTokenDistributionsInBP;
-    address[] public poolTokens;
-    uint8 public poolSize;
-
-    uint256[] public poolTokenBalances;
+    uint256 public totalEntryFeeCollected = 0;
     uint256 public totalReceivedEntryAssetAmount = 0;
 
     modifier onlyOwner() {
@@ -33,24 +21,14 @@ contract PoolStorage {
     }
 
     constructor(
-        address _feeRecipient,
-        address[] memory _poolTokens,
-        uint24[] memory _poolTokenDistributionsInBP
-    ) {
-        poolTokens = _poolTokens;
-        poolTokenDistributionsInBP = _poolTokenDistributionsInBP;
-        poolSize = uint8(poolTokens.length);
-        poolTokenBalances = new uint256[](poolSize);
-        feeRecipient = _feeRecipient;
-    }
-
-    function upgradeOwner(address _newOwner) public {
-        require(owner == address(0));
-        owner = _newOwner;
-    }
-
-    function setMinInvestmentLimit(uint256 _minInvestmentLimit) external onlyOwner {
-        minInvestmentLimit = _minInvestmentLimit;
+        address _entryAsset,
+        string memory _name,
+        string memory _symbol,
+        address _feeReceiver
+    ) ERC20(_name, _symbol) {
+        require(_feeReceiver != address(0) && _entryAsset != address(0), "ZERO_ADDRESS");
+        feeReceiver = _feeReceiver;
+        entryAsset = _entryAsset;
     }
 
     function increaseTotalSuccessFeeAmountCollected(uint256 _amount) external onlyOwner {
@@ -58,95 +36,19 @@ contract PoolStorage {
     }
 
     function increaseTotalManagerFeeAmountCollected(uint256 _amount) external onlyOwner {
-        totalManagerFeeAmountCollected += _amount;
+        totalEntryFeeCollected += _amount;
+    }
+
+    function increaseTotalReceivedEntryAssetAmount(uint256 _amount) external onlyOwner {
+        totalReceivedEntryAssetAmount += _amount;
     }
 
     function decreaseTotalReceivedEntryAssetAmount(uint256 _amount) external onlyOwner {
         totalReceivedEntryAssetAmount -= _amount;
     }
 
-    function increasePoolTokenBalanceAmount(uint16 _tokenIndex, uint256 _amount) external onlyOwner {
-        poolTokenBalances[_tokenIndex] += _amount;
-    }
-
-    function decreasePoolTokenBalanceAmount(uint16 _tokenIndex, uint256 _amount) external onlyOwner {
-        poolTokenBalances[_tokenIndex] -= _amount;
-    }
-
-    function setManagerFeeInBp(uint24 _managerFeeInBp) external onlyOwner {
-        managerFeeInBp = _managerFeeInBp;
-    }
-
-    function setSuccessFeeInBp(uint24 _successFeeInBp) external onlyOwner {
-        successFeeInBp = _successFeeInBp;
-    }
-
-    function setFeeRecipient(address _feeRecipient) external onlyOwner {
-        feeRecipient = _feeRecipient;
-    }
-
-    function setPoolTokenDistributionsInBP(uint24[] memory _poolTokenDistributionsInBP) external onlyOwner {
-        poolTokenDistributionsInBP = _poolTokenDistributionsInBP;
-    }
-
-    function getInvestments(address _investor) external view returns (KedrLib.InvestmentData[] memory) {
-        return KedrLib.getInvestments(investmentDataByUser, _investor);
-    }
-
-    function startInvestment(
-        address _investor,
-        uint256 _receivedEntryAssetAmount,
-        uint256[] memory _tokenBalanceAmounts
-    ) external {
-        totalReceivedEntryAssetAmount += _receivedEntryAssetAmount;
-        KedrLib.startInvestment(investmentDataByUser, _investor, _receivedEntryAssetAmount, _tokenBalanceAmounts);
-    }
-
-    function updateInvestment(
-        address _investor,
-        uint16 _investmentId,
-        uint256 _receivedEntryAssetAmount,
-        uint256[] memory _tokenBalanceAmounts,
-        bool _active
-    ) external {
-        KedrLib.updateInvestment(investmentDataByUser, _investor, _investmentId, _receivedEntryAssetAmount, _tokenBalanceAmounts, _active);
-    }
-
-    function getInvestment(address _investor, uint16 _investmentId) external view returns (KedrLib.InvestmentData memory) {
-        return KedrLib.getInvestment(investmentDataByUser, _investor, _investmentId);
-    }
-
-    function calculateManagerFeeAmount(uint256 _inputAmount) external view returns (uint256 managerFeeAmount, uint256 finalAmount) {
-        managerFeeAmount = _inputAmount.mul(managerFeeInBp).div(100);
-        finalAmount = _inputAmount.sub(managerFeeAmount);
-    }
-
-    function calculateSuccessFeeAmount(uint256 _inputAmount) external view returns (uint256 successFeeAmount, uint256 finalAmount) {
-        successFeeAmount = _inputAmount.mul(successFeeInBp).div(100);
-        finalAmount = _inputAmount.sub(successFeeAmount);
-    }
-
-    function getFeeRecipient() external view returns (address) {
-        return feeRecipient;
-    }
-
-    function getPoolSize() external view returns (uint8) {
-        return poolSize;
-    }
-
-    function getMinInvestmentLimit() external view returns (uint256) {
-        return minInvestmentLimit;
-    }
-
-    function getTotalSuccessFeeAmountCollected() external view returns (uint256) {
-        return totalSuccessFeeAmountCollected;
-    }
-
-    function getTotalManagerFeeAmountCollected() external view returns (uint256) {
-        return totalManagerFeeAmountCollected;
-    }
-
-    function getTotalReceivedEntryAssetAmount() external view returns (uint256) {
-        return totalReceivedEntryAssetAmount;
+    function setFeeReceiver(address _feeReceiver) external onlyOwner {
+        require(_feeReceiver != address(0), "ZERO_ADDRESS");
+        feeReceiver = _feeReceiver;
     }
 }

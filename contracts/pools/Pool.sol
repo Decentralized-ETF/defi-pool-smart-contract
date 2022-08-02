@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
 import '../base/BasePool.sol';
 
-contract FixedPool is BasePool {
+contract Pool is BasePool {
     ISwapRouter internal immutable swapRouter;
     IQuoter internal immutable quoter;
 

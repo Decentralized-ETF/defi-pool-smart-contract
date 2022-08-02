@@ -66,6 +66,9 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
         return assets.length;
     }
 
+    /**
+     * @dev this function updates allocation weights for all assets
+     */
     function updateAllocations(uint24[] memory _weights) external onlyOwner {
         require(_weights.length == assets.length, "WRONG_LENGTH");
         weights = _weights;
@@ -105,7 +108,6 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
 
     function details() public view returns (PoolDetails memory) {
         PoolDetails memory data = PoolDetails({
-            creator: owner(),
             entryAsset: PoolStorage.entryAsset(),
             minInvestment: minInvestment,
             assets: assets,

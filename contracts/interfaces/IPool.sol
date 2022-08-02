@@ -3,7 +3,6 @@ pragma solidity >=0.7.6;
 
 interface IPool {
     struct PoolDetails {
-        address creator;
         address entryAsset;
         uint256 minInvestment;
         address[] assets;
