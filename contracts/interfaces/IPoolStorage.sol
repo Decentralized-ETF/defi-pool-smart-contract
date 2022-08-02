@@ -3,7 +3,9 @@ pragma solidity >=0.7.6;
 
 import '../libraries/KedrLib.sol';
 
-interface IStorage {
+interface IPoolStorage {
+    function entryAsset() external view returns (address);
+
     function getInvestment(address _investor, uint16 _investmentId) external view returns (KedrLib.InvestmentData memory);
 
     function getInvestments(address _investor) external view returns (KedrLib.InvestmentData[] memory);
