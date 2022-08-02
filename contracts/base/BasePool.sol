@@ -13,6 +13,7 @@ import "../libraries/KedrConstants.sol";
 abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
     uint64 public poolId;
     address public factory;
+    address public poolStorage;
     IPoolStorage internal PoolStorage;
     PoolDetails public poolDetails;
 
@@ -28,11 +29,14 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
 
     // called once by the factory at time of deployment
     function initialize(
-        PoolDetails calldata _poolDetails
+        PoolDetails calldata _poolDetails,
+        address _poolStorage
     ) external onlyFactory {
         require(_poolDetails.assets.length == _poolDetails.weights.length, "INVALID_ALLOCATIONS");
+        require(_poolStorage != address(0), "ZERO_ADDRESS");
         poolDetails = _poolDetails;
-        PoolStorage = IPoolStorage(_poolDetails.poolStorage);
+        poolStorage = _poolStorage;
+        PoolStorage = IPoolStorage(_poolStorage);
         setSuccessFee(_poolDetails.successFee);
         setEntryFee(_poolDetails.entryFee);
     }
@@ -107,10 +111,6 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
 
     function minInvestment() external view returns (uint256) {
         return poolDetails.minInvestment;
-    }
-
-    function poolStorage() external view returns (address) {
-        return poolDetails.poolStorage;
     }
 
     /**
