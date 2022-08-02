@@ -1,8 +1,8 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity >=0.7.6;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "./libraries/KedrLib.sol";
+import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import '../libraries/KedrLib.sol';
 
 contract PoolStorage {
     using SafeMath for uint256;
@@ -35,7 +35,8 @@ contract PoolStorage {
     constructor(
         address _feeRecipient,
         address[] memory _poolTokens,
-        uint24[] memory _poolTokenDistributionsInBP) {
+        uint24[] memory _poolTokenDistributionsInBP
+    ) {
         poolTokens = _poolTokens;
         poolTokenDistributionsInBP = _poolTokenDistributionsInBP;
         poolSize = uint8(poolTokens.length);
@@ -84,54 +85,43 @@ contract PoolStorage {
         feeRecipient = _feeRecipient;
     }
 
-    function setPoolTokenDistributionsInBP(uint24[] memory _poolTokenDistributionsInBP)
-    external
-    onlyOwner {
+    function setPoolTokenDistributionsInBP(uint24[] memory _poolTokenDistributionsInBP) external onlyOwner {
         poolTokenDistributionsInBP = _poolTokenDistributionsInBP;
     }
 
-    function getInvestments(address _investor)
-    external
-    view
-    returns (KedrLib.InvestmentData[] memory)
-    {
+    function getInvestments(address _investor) external view returns (KedrLib.InvestmentData[] memory) {
         return KedrLib.getInvestments(investmentDataByUser, _investor);
     }
 
-    function startInvestment(address _investor,
+    function startInvestment(
+        address _investor,
         uint256 _receivedEntryAssetAmount,
-        uint256[] memory _tokenBalanceAmounts) external {
+        uint256[] memory _tokenBalanceAmounts
+    ) external {
         totalReceivedEntryAssetAmount += _receivedEntryAssetAmount;
-        KedrLib.startInvestment(
-            investmentDataByUser,
-            _investor,
-            _receivedEntryAssetAmount,
-            _tokenBalanceAmounts
-        );
+        KedrLib.startInvestment(investmentDataByUser, _investor, _receivedEntryAssetAmount, _tokenBalanceAmounts);
     }
 
-    function updateInvestment(address _investor,
+    function updateInvestment(
+        address _investor,
         uint16 _investmentId,
         uint256 _receivedEntryAssetAmount,
         uint256[] memory _tokenBalanceAmounts,
-        bool _active) external {
-        KedrLib.updateInvestment(investmentDataByUser,
-    _investor, _investmentId,_receivedEntryAssetAmount,_tokenBalanceAmounts,_active);
+        bool _active
+    ) external {
+        KedrLib.updateInvestment(investmentDataByUser, _investor, _investmentId, _receivedEntryAssetAmount, _tokenBalanceAmounts, _active);
     }
 
-    function getInvestment(address _investor, uint16 _investmentId) external view
-    returns (KedrLib.InvestmentData memory) {
+    function getInvestment(address _investor, uint16 _investmentId) external view returns (KedrLib.InvestmentData memory) {
         return KedrLib.getInvestment(investmentDataByUser, _investor, _investmentId);
     }
 
-    function calculateManagerFeeAmount(uint256 _inputAmount) external view
-    returns (uint256 managerFeeAmount, uint256 finalAmount){
+    function calculateManagerFeeAmount(uint256 _inputAmount) external view returns (uint256 managerFeeAmount, uint256 finalAmount) {
         managerFeeAmount = _inputAmount.mul(managerFeeInBp).div(100);
         finalAmount = _inputAmount.sub(managerFeeAmount);
     }
 
-    function calculateSuccessFeeAmount(uint256 _inputAmount) external view
-    returns (uint256 successFeeAmount, uint256 finalAmount){
+    function calculateSuccessFeeAmount(uint256 _inputAmount) external view returns (uint256 successFeeAmount, uint256 finalAmount) {
         successFeeAmount = _inputAmount.mul(successFeeInBp).div(100);
         finalAmount = _inputAmount.sub(successFeeAmount);
     }
@@ -140,25 +130,23 @@ contract PoolStorage {
         return feeRecipient;
     }
 
-    function getPoolSize() external view
-    returns (uint8){
+    function getPoolSize() external view returns (uint8) {
         return poolSize;
     }
 
-    function getMinInvestmentLimit() external view
-    returns (uint256){
+    function getMinInvestmentLimit() external view returns (uint256) {
         return minInvestmentLimit;
     }
 
-    function getTotalSuccessFeeAmountCollected() external view returns(uint256) {
-       return totalSuccessFeeAmountCollected;
+    function getTotalSuccessFeeAmountCollected() external view returns (uint256) {
+        return totalSuccessFeeAmountCollected;
     }
 
-    function getTotalManagerFeeAmountCollected() external view returns(uint256) {
-       return totalManagerFeeAmountCollected;
+    function getTotalManagerFeeAmountCollected() external view returns (uint256) {
+        return totalManagerFeeAmountCollected;
     }
 
-    function getTotalReceivedEntryAssetAmount() external view returns(uint256)  {
+    function getTotalReceivedEntryAssetAmount() external view returns (uint256) {
         return totalReceivedEntryAssetAmount;
     }
 }
