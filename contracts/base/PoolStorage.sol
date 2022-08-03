@@ -2,13 +2,13 @@
 pragma solidity >=0.7.6;
 
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '../libraries/KedrLib.sol';
 import '../interfaces/IPoolStorage.sol';
 
 contract PoolStorage is ERC20 {
     using SafeMath for uint256;
-    
+
     address public factory;
     address public pool;
     uint256 public poolStorageId;
@@ -19,7 +19,7 @@ contract PoolStorage is ERC20 {
     uint256 public totalReceivedEntryAssetAmount = 0;
 
     modifier onlyFactory() {
-        require(msg.sender == factory, "CALLER_IS_NOT_FACTORY");
+        require(msg.sender == factory, 'CALLER_IS_NOT_FACTORY');
         _;
     }
 
@@ -31,17 +31,15 @@ contract PoolStorage is ERC20 {
         string memory _symbol
     ) ERC20(_name, _symbol) {
         poolStorageId = _poolStorageId;
-        require(_feeReceiver != address(0) && _entryAsset != address(0), "ZERO_ADDRESS");
+        require(_feeReceiver != address(0) && _entryAsset != address(0), 'ZERO_ADDRESS');
         factory = msg.sender;
         feeReceiver = _feeReceiver;
         entryAsset = _entryAsset;
     }
 
     // called once by the factory during deployment
-    function initialize(
-        address _pool
-    ) external onlyFactory {
-        require(_pool != address(0), "ZERO_ADDRESS");
+    function link(address _pool) external onlyFactory {
+        require(_pool != address(0), 'ZERO_ADDRESS');
         pool = _pool;
     }
 
@@ -62,7 +60,7 @@ contract PoolStorage is ERC20 {
     }
 
     function setFeeReceiver(address _feeReceiver) external onlyFactory {
-        require(_feeReceiver != address(0), "ZERO_ADDRESS");
+        require(_feeReceiver != address(0), 'ZERO_ADDRESS');
         feeReceiver = _feeReceiver;
     }
 }

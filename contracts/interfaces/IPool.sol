@@ -16,7 +16,11 @@ interface IPool {
         address entryAsset;
     }
 
-    function initialize(PoolDetails calldata _poolDetails, address _poolStorage) external;
+    function initialize(PoolDetails calldata _poolDetails) external;
+
+    function link(address _poolStorage) external;
+
+    function moveFunds(address _newPool) external;
 
     function entryFee() external view returns (uint16);
 

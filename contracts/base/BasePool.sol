@@ -3,14 +3,13 @@ pragma solidity >=0.7.6;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IPool.sol";
 import "../interfaces/IPoolStorage.sol";
 import "../libraries/KedrConstants.sol";
 
-abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
+abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     uint64 public override poolId;
     address public override factory;
     address public override poolStorage;
@@ -29,27 +28,41 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
 
     // called once by the factory at time of deployment
     function initialize(
-        PoolDetails calldata _poolDetails,
-        address _poolStorage
+        PoolDetails calldata _poolDetails
     ) external override onlyFactory {
-        require(_poolDetails.assets.length == _poolDetails.weights.length, "INVALID_ALLOCATIONS");
-        require(_poolStorage != address(0), "ZERO_ADDRESS");
+        require(_poolDetails.assets.length == _poolDetails.weights.length, "INVALID_ALLOCATIONS");  
         poolDetails = _poolDetails;
-        poolStorage = _poolStorage;
-        PoolStorage = IPoolStorage(_poolStorage);
         setSuccessFee(_poolDetails.successFee);
         setEntryFee(_poolDetails.entryFee);
     }
 
-    function pause() public onlyOwner {
+    function link(address _poolStorage) external override onlyFactory {
+        require(_poolStorage != address(0), "ZERO_ADDRESS");
+        poolStorage = _poolStorage;
+        PoolStorage = IPoolStorage(_poolStorage);
+    }
+
+    // Must be called only inside Factory.switchStorageToNewPool function 
+    function moveFunds(address _newPool) external override onlyFactory {
+        require(_newPool != address(0), "ZERO_ADDRESS");
+        for (uint256 i; i < poolDetails.assets.length; ++ i) {
+            address token = poolDetails.assets[i];
+            uint256 balance = IERC20(token).balanceOf(address(this));
+            if (balance > 0) {
+                TransferHelper.safeTransfer(token, _newPool, balance);
+            }
+        }
+    }
+
+    function pause() external onlyFactory {
         _pause();
     }
 
-    function unpause() public onlyOwner {
+    function unpause() external onlyFactory {
         _unpause();
     }
 
-    function setWeight(address _asset, uint24 _weight) external override onlyOwner {
+    function setWeight(address _asset, uint24 _weight) external override onlyFactory {
         // TODO: find index of asset in assets and updated weights[i] = _weight
     }
 
@@ -60,12 +73,12 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
     /**
      * @dev this function updates allocation weights for all assets
      */
-    function updateAllocations(uint24[] memory _weights) external override onlyOwner {
+    function updateAllocations(uint24[] memory _weights) external override onlyFactory {
         require(_weights.length == poolDetails.assets.length, "WRONG_LENGTH");
         poolDetails.weights = _weights;
     }
 
-    function setSuccessFee(uint16 _successFee) public onlyOwner whenPaused {
+    function setSuccessFee(uint16 _successFee) public onlyFactory whenPaused {
         require(
             _successFee >= KedrConstants._MIN_SUCCESS_FEE,
             "TOO_SMALL_NUMERATOR"
@@ -77,7 +90,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
         poolDetails.successFee = _successFee;
     }
 
-    function setEntryFee(uint16 _entryFee) public onlyOwner whenPaused {
+    function setEntryFee(uint16 _entryFee) public onlyFactory whenPaused {
         require(
             _entryFee >= KedrConstants._MIN_SUCCESS_FEE,
             "TOO_SMALL_NUMERATOR"
@@ -91,7 +104,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Ownable, Pausable {
 
     function setMinInvestment(uint256 _minInvestment)
         external
-        onlyOwner
+        onlyFactory
         whenPaused
     {
         poolDetails.minInvestment = _minInvestment;

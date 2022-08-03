@@ -11,7 +11,7 @@ interface IPoolStorage is IERC20 {
 
     function poolStorageId() external view returns (uint256);
 
-    function initialize(address _pool) external;
+    function link(address _pool) external;
 
     // function increaseTotalSuccessFeeAmountCollected(uint256 _amount) external;
 
