@@ -80,24 +80,16 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
 
     function setSuccessFee(uint16 _successFee) public onlyFactory whenPaused {
         require(
-            _successFee >= KedrConstants._MIN_SUCCESS_FEE,
-            "TOO_SMALL_NUMERATOR"
-        );
-        require(
-            _successFee <= KedrConstants._FEE_DENOMINATOR,
-            "TOO_BIG_NUMERATOR"
+            _successFee <= KedrConstants._MAX_SUCCESS_FEE,
+            "TOO_BIG_FEE"
         );
         poolDetails.successFee = _successFee;
     }
 
     function setEntryFee(uint16 _entryFee) public onlyFactory whenPaused {
         require(
-            _entryFee >= KedrConstants._MIN_SUCCESS_FEE,
-            "TOO_SMALL_NUMERATOR"
-        );
-        require(
-            _entryFee <= KedrConstants._FEE_DENOMINATOR,
-            "TOO_BIG_NUMERATOR"
+            _entryFee <= KedrConstants._MAX_ENTRY_FEE,
+            "TOO_BIG_FEE"
         );
         poolDetails.entryFee = _entryFee;
     }
