@@ -13,13 +13,9 @@ interface IPoolStorage is IERC20 {
 
     function link(address _pool) external;
 
-    // function increaseTotalSuccessFeeAmountCollected(uint256 _amount) external;
+    function recordInvestment(uint256 _amount, uint256 _entryFee) external;
 
-    // function increaseTotalManagerFeeAmountCollected(uint256 _amount) external;
-
-    // function increaseTotalReceivedEntryAssetAmount(uint256 _amount) external;
-
-    // function decreaseTotalReceivedEntryAssetAmount(uint256 _amount) external;
+    function recordWithdrawal(uint256 _amount, uint256 _successFee) external;
 
     function totalReceivedEntryAssetAmount() external view returns (uint256);
 
@@ -27,5 +23,5 @@ interface IPoolStorage is IERC20 {
 
     function totalSuccessFeeAmountCollected() external view returns (uint256);
 
-    function getFeeReceiver() external returns (address);
+    function feeReceiver() external returns (address);
 }

@@ -100,4 +100,7 @@ contract Factory is Ownable, ReentrancyGuard {
         }
         return _contract;
     }
+
+
+    // TODO: make setters from Factory to Pool and Storage
 }

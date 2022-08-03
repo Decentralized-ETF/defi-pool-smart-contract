@@ -3,6 +3,7 @@ pragma solidity >=0.7.6;
 
 interface IPool {
     struct PoolDetails {
+        address swapper;
         uint256 minInvestment;
         address[] assets;
         uint24[] weights;
@@ -34,7 +35,7 @@ interface IPool {
 
     function poolId() external view returns (uint64);
 
-    function invest(uint256 amount) external;
+    function invest(uint256 amount, bool defaultRouter) external payable;
 
     function withdraw(uint256 amount) external;
 

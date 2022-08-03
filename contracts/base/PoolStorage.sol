@@ -14,12 +14,18 @@ contract PoolStorage is ERC20 {
     uint256 public poolStorageId;
     address public feeReceiver;
     address public entryAsset;
-    uint256 public totalSuccessFeeAmountCollected = 0;
+    uint256 public totalSuccessFeeCollected = 0;
     uint256 public totalEntryFeeCollected = 0;
-    uint256 public totalReceivedEntryAssetAmount = 0;
+    uint256 public totalReceivedEntryAsset = 0;
+    uint256 public totalWithdrawnEntryAsset = 0;
 
     modifier onlyFactory() {
         require(msg.sender == factory, 'CALLER_IS_NOT_FACTORY');
+        _;
+    }
+
+    modifier onlyPool() {
+        require(msg.sender == pool, 'CALLER_IS_NOT_POOL');
         _;
     }
 
@@ -42,22 +48,17 @@ contract PoolStorage is ERC20 {
         require(_pool != address(0), 'ZERO_ADDRESS');
         pool = _pool;
     }
-
-    function increaseTotalSuccessFeeAmountCollected(uint256 _amount) internal {
-        totalSuccessFeeAmountCollected += _amount;
+ 
+    function recordInvestment(uint256 _amount, uint256 _entryFee) external onlyPool {
+        totalReceivedEntryAsset += _amount;
+        totalEntryFeeCollected += _entryFee;
     }
 
-    function increaseTotalManagerFeeAmountCollected(uint256 _amount) internal {
-        totalEntryFeeCollected += _amount;
+    function recordWithdrawal(uint256 _amount, uint256 _successFee) external onlyPool {
+        totalWithdrawnEntryAsset += _amount;
+        totalSuccessFeeCollected += _successFee;
     }
 
-    function increaseTotalReceivedEntryAssetAmount(uint256 _amount) internal {
-        totalReceivedEntryAssetAmount += _amount;
-    }
-
-    function decreaseTotalReceivedEntryAssetAmount(uint256 _amount) internal {
-        totalReceivedEntryAssetAmount -= _amount;
-    }
 
     function setFeeReceiver(address _feeReceiver) external onlyFactory {
         require(_feeReceiver != address(0), 'ZERO_ADDRESS');

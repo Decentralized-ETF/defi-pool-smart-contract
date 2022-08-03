@@ -8,18 +8,28 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IPool.sol";
 import "../interfaces/IPoolStorage.sol";
 import "../libraries/KedrConstants.sol";
+import "../interfaces/ISwapper.sol";
 
 abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     uint64 public override poolId;
     address public override factory;
     address public override poolStorage;
-    IPoolStorage internal PoolStorage;
     PoolDetails public poolDetails;
+    IPoolStorage internal PoolStorage;
+    ISwapper internal Swapper;
 
     constructor(uint64 _poolId) {
         factory = msg.sender;
         poolId = _poolId;
     }
+
+    event Invested(
+        address indexed user,
+        address entryAsset,
+        address feeReceiver,
+        uint256 amount,
+        uint256 entryFee
+    );
 
     modifier onlyFactory() {
         require(msg.sender == factory, "CALLER_IS_NOT_FACTORY");
@@ -126,7 +136,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     /**
      * @dev must be implemented in inherited classes
      */
-    function invest(uint256 _amount) public virtual override {}
+    function invest(uint256 _amount, bool _defaultRouter) public virtual override payable {}
 
     /**
      * @dev must be implemented in inherited classes

@@ -7,14 +7,13 @@ import '../base/BasePool.sol';
 import "../libraries/KedrConstants.sol";
 
 contract Pool is BasePool {
-    // TODO
 
     constructor(uint64 _poolId) BasePool(_poolId) {}
 
     /**
      * Invest entry asset
      */
-    function invest(uint256 amount) public override {
+    function invest(uint256 amount, bool defaultRouter) public override payable {
         require(amount >= poolDetails.minInvestment, 'TOO_SMALL_INVESTMENT');
         address entryAsset = PoolStorage.entryAsset();
         if (entryAsset == address(0)) {
@@ -24,32 +23,23 @@ contract Pool is BasePool {
         } else {
             TransferHelper.safeTransferFrom(entryAsset, msg.sender, address(this), amount);
         }
+        uint256 entryFee = (amount * poolDetails.entryFee) / KedrConstants._FEE_DENOMINATOR;
+        uint256 invested = amount - entryFee;
 
-        uint256 managerFee = (amount * poolDetails.entryFee) / KedrConstants._FEE_DENOMINATOR;
-        uint256 invested = amount - managerFee;
+        PoolStorage.recordInvestment(invested, entryFee);
+        TransferHelper.safeApprove(entryAsset, poolDetails.swapper, invested);
 
-        uint256[] memory tokenBalances = new uint256[](poolSize);
-        totalReceivedCurrency = totalReceivedCurrency + investmentAmount;
-
-        TransferHelper.safeApprove(entryAsset, swapper, invested);
-        for (uint8 i = 0; i < poolSize; i++) {
-            uint256 tokenBalance = entryAssetToToken(investmentAmount, i, inputIsNativeToken);
-            tokenBalances[i] = tokenBalance;
+        for (uint8 i; i < poolDetails.assets.length; ++i) {
+            uint256 received = Swapper.swap(entryAsset, poolDetails.assets[i], amount, address(this), defaultRouter);
+            require(received > 0, "zero tokens received");
         }
-        investmentDataByUser[investor].push(
-            InvestmentData({
-                inputIsNativeToken: inputIsNativeToken,
-                receivedCurrency: investmentAmount,
-                tokenBalances: tokenBalances,
-                rebalanceEnabled: true,
-                active: true
-            })
-        );
-        if (theManagerFee > 0) {
-            totalManagerFee = totalManagerFee + theManagerFee;
-            TransferHelper.safeTransferFrom(address(entryAsset), address(this), address(feeAddress), theManagerFee);
+
+        address feeReceiver = PoolStorage.feeReceiver();
+        if (entryFee > 0) {
+            // TODO: make generic TransferHelper for native and ERC20 
+            TransferHelper.safeTransferFrom(entryAsset, address(this), feeReceiver, entryFee);
         }
-        emit Invested(investor, investmentAmount, tokenBalances, poolTokenPercentages);
+        emit Invested(msg.sender, entryAsset, feeReceiver, invested, entryFee);
     }
 
     /**
