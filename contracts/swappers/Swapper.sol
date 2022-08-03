@@ -34,7 +34,7 @@ contract Swapper is ISwapper {
         uint256 _amount,
         address _recipient,
         bool _defaultRouter
-    ) external returns (uint256) {
+    ) external override returns (uint256) {
         require(_amount > 0, "ZERO_AMOUNT");
         (
             address router,

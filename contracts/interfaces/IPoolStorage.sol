@@ -1,58 +1,31 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity >=0.7.6;
 
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '../libraries/KedrLib.sol';
 
-interface IPoolStorage {
+interface IPoolStorage is IERC20 {
     function entryAsset() external view returns (address);
 
-    function getInvestment(address _investor, uint16 _investmentId) external view returns (KedrLib.InvestmentData memory);
+    function pool() external view returns (address);
 
-    function getInvestments(address _investor) external view returns (KedrLib.InvestmentData[] memory);
+    function poolStorageId() external view returns (uint256);
 
-    function setMinInvestmentLimit(uint256 _minInvestmentLimit) external;
+    function initialize(address _pool) external;
 
-    function setManagerFeeInBp(uint24 _managerFeeInBp) external;
+    // function increaseTotalSuccessFeeAmountCollected(uint256 _amount) external;
 
-    function setSuccessFeeInBp(uint24 _successFeeInBp) external;
+    // function increaseTotalManagerFeeAmountCollected(uint256 _amount) external;
 
-    function setFeeRecipient(address _feeRecipient) external;
+    // function increaseTotalReceivedEntryAssetAmount(uint256 _amount) external;
 
-    function calculateManagerFeeAmount(uint256 _inputAmount) external returns (uint256 managerFeeAmount, uint256 finalAmount);
+    // function decreaseTotalReceivedEntryAssetAmount(uint256 _amount) external;
 
-    function calculateSuccessFeeAmount(uint256 _inputAmount) external returns (uint256 successFeeAmount, uint256 finalAmount);
+    function totalReceivedEntryAssetAmount() external view returns (uint256);
 
-    function getPoolSize() external returns (uint8);
+    function totalEntryFeeCollected() external view returns (uint256);
 
-    function getMinInvestmentLimit() external returns (uint256);
+    function totalSuccessFeeAmountCollected() external view returns (uint256);
 
-    function startInvestment(
-        address _investor,
-        uint256 _receivedEntryAssetAmount,
-        uint256[] memory _tokenBalanceAmounts
-    ) external;
-
-    function updateInvestment(
-        address _investor,
-        uint16 _investmentId,
-        uint256 _receivedEntryAssetAmount,
-        uint256[] memory _tokenBalanceAmounts,
-        bool _active
-    ) external;
-
-    function increaseTotalSuccessFeeAmountCollected(uint256 _amount) external;
-
-    function increaseTotalManagerFeeAmountCollected(uint256 _amount) external;
-
-    function getTotalSuccessFeeAmountCollected() external view returns (uint256);
-
-    function getTotalManagerFeeAmountCollected() external view returns (uint256);
-
-    function getTotalReceivedEntryAssetAmount() external view returns (uint256);
-
-    function increasePoolTokenBalanceAmount(uint16 _tokenIndex, uint256 _amount) external;
-
-    function decreasePoolTokenBalanceAmount(uint16 _tokenIndex, uint256 _amount) external;
-
-    function getFeeRecipient() external returns (address);
+    function getFeeReceiver() external returns (address);
 }
