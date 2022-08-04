@@ -18,9 +18,10 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     IPoolStorage internal PoolStorage;
     ISwapper internal Swapper;
 
-    constructor(uint64 _poolId) {
+    constructor(uint64 _poolId, address _swapper) {
         factory = msg.sender;
         poolId = _poolId;
+        Swapper = ISwapper(_swapper);
     }
 
     event Invested(

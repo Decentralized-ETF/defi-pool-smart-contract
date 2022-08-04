@@ -129,7 +129,7 @@ contract Swapper is ISwapper {
         address router,
         address tokenIn,
         address tokenOut
-    ) internal view returns (address[] memory) {
+    ) internal pure returns (address[] memory) {
         // TODO: complete
         address[] memory route;
         route[0] = tokenIn;
@@ -189,18 +189,7 @@ contract Swapper is ISwapper {
         uint256 _amount,
         address _recipient
     ) internal {
-        // ISwapRouter.ExactInputSingleParams memory paramsForSwap = ISwapRouter
-        //     .ExactInputSingleParams({
-        //         tokenIn: _tokenIn,
-        //         tokenOut: _tokenOut,
-        //         fee: fee,
-        //         recipient: _recipient,
-        //         deadline: _timestamp,
-        //         amountIn: _amount,
-        //         amountOutMinimum: 0,
-        //         sqrtPriceLimitX96: 0
-        //     });
-        // return swapRouterV3.exactInputSingle(paramsForSwap);
+        // TODO: 
     }
 
     function _balancerSwap(

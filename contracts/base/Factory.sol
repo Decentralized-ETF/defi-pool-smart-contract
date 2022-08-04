@@ -10,15 +10,17 @@ import './PoolStorage.sol';
 
 contract Factory is Ownable, ReentrancyGuard {
     address public feeReceiver; // default feeReceiver is used during each deployment of poolStorage
+    address public swapper;
     address[] public pools;
     address[] public poolStorages;
 
     event PoolCreated(address _address, uint256 _id);
     event PoolStorageCreated(address _address, uint256 _id);
 
-    constructor(address _feeReceiver) {
-        require(_feeReceiver != address(0), 'ZERO_ADDRESS');
+    constructor(address _feeReceiver, address _swapper) {
+        require(_feeReceiver != address(0) && _swapper != address(0), 'ZERO_ADDRESS');
         feeReceiver = _feeReceiver;
+        swapper = _swapper;
     }
 
     function poolsCount() external view returns (uint256) {
@@ -34,7 +36,7 @@ contract Factory is Ownable, ReentrancyGuard {
         returns (address pool, address poolStorage)
     {
         poolStorage = _createPoolStorage(_entryAsset);
-        pool = createPool(poolDetails);
+        pool = createPool(poolDetails, swapper);
         _link(pool, poolStorage);
     }
 
@@ -57,9 +59,9 @@ contract Factory is Ownable, ReentrancyGuard {
     /**
      * Creates new Pool without linking to storage
      */
-    function createPool(IPool.PoolDetails memory poolDetails) public returns (address pool) {
+    function createPool(IPool.PoolDetails memory poolDetails, address _swapper) public returns (address pool) {
         uint256 poolId = pools.length + 1;
-        bytes memory poolBytecode = abi.encodePacked(type(Pool).creationCode, poolId);
+        bytes memory poolBytecode = abi.encodePacked(type(Pool).creationCode, poolId, _swapper);
         pool = _deploy(poolBytecode);
         IPool(pool).initialize(poolDetails);
         pools.push(pool);

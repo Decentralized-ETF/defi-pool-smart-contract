@@ -8,7 +8,7 @@ import "../libraries/KedrConstants.sol";
 
 contract Pool is BasePool {
 
-    constructor(uint64 _poolId) BasePool(_poolId) {}
+    constructor(uint64 _poolId, address _swapper) BasePool(_poolId, _swapper) {}
 
     /**
      * Invest entry asset

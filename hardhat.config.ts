@@ -35,7 +35,7 @@ const config: HardhatUserConfig = {
       gas: 6000000,
       gasPrice: 18000000000,
     },
-    mainnet: {
+    polygon: {
       url: "https://polygon-rpc.com/",
       // network_id: 80001,
       // confirmations: 2,
