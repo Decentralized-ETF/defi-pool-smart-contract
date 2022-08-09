@@ -9,7 +9,7 @@ import '../pools/Pool.sol';
 import './PoolStorage.sol';
 
 contract Factory is Ownable, ReentrancyGuard {
-    address public feeReceiver; // default feeReceiver is used during each deployment of poolStorage
+    address public defaultFeeReceiver; // default feeReceiver is used during each deployment of poolStorage
     address public swapper;
     address[] public pools;
     address[] public poolStorages;
@@ -17,9 +17,9 @@ contract Factory is Ownable, ReentrancyGuard {
     event PoolCreated(address _address, uint256 _id);
     event PoolStorageCreated(address _address, uint256 _id);
 
-    constructor(address _feeReceiver, address _swapper) {
-        require(_feeReceiver != address(0) && _swapper != address(0), 'ZERO_ADDRESS');
-        feeReceiver = _feeReceiver;
+    constructor(address _defaultFeeReceiver, address _swapper) {
+        require(_defaultFeeReceiver != address(0) && _swapper != address(0), 'ZERO_ADDRESS');
+        defaultFeeReceiver = _defaultFeeReceiver;
         swapper = _swapper;
     }
 
@@ -51,11 +51,6 @@ contract Factory is Ownable, ReentrancyGuard {
         IPoolStorage(_poolStorage).link(_newPool);
     }
 
-    function setDefaultFeeReceiver(address _feeReceiver) external onlyOwner {
-        require(_feeReceiver != address(0), 'ZERO_ADDRESS');
-        feeReceiver = _feeReceiver;
-    }
-
     /**
      * Creates new Pool without linking to storage
      */
@@ -76,7 +71,7 @@ contract Factory is Ownable, ReentrancyGuard {
         string memory entrySymbol = IERC20Metadata(_entryAsset).symbol();
         bytes memory symbol = abi.encodePacked('k', entrySymbol);
         bytes memory name = abi.encodePacked('KEDR_', entrySymbol);
-        bytes memory storageBytecode = abi.encodePacked(type(PoolStorage).creationCode, id, _entryAsset, feeReceiver, name, symbol);
+        bytes memory storageBytecode = abi.encodePacked(type(PoolStorage).creationCode, id, _entryAsset, defaultFeeReceiver, name, symbol);
         poolStorage = _deploy(storageBytecode);
         poolStorages.push(poolStorage);
         emit PoolStorageCreated(poolStorage, id);
@@ -103,6 +98,14 @@ contract Factory is Ownable, ReentrancyGuard {
         return _contract;
     }
 
+    // ADMIN SETTERS:
 
-    // TODO: make setters from Factory to Pool and Storage
+    function setDefaultFeeReceiver(address _receiver) external onlyOwner {
+        require(_receiver != address(0), 'ZERO_ADDRESS');
+        defaultFeeReceiver = _receiver;
+    }
+
+    function setFeeReceiver(address _poolStorage, address _receiver) external onlyOwner {
+        IPoolStorage(_poolStorage).setFeeReceiver(_receiver);
+    }
 }

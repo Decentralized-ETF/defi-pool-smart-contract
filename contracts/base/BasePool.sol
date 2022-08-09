@@ -1,14 +1,14 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity >=0.7.6;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../interfaces/IPool.sol";
-import "../interfaces/IPoolStorage.sol";
-import "../libraries/KedrConstants.sol";
-import "../interfaces/ISwapper.sol";
+import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import '@openzeppelin/contracts/security/Pausable.sol';
+import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '../interfaces/IPool.sol';
+import '../interfaces/IPoolStorage.sol';
+import '../libraries/KedrConstants.sol';
+import '../interfaces/ISwapper.sol';
 
 abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     uint64 public override poolId;
@@ -24,40 +24,30 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         Swapper = ISwapper(_swapper);
     }
 
-    event Invested(
-        address indexed user,
-        address entryAsset,
-        address feeReceiver,
-        uint256 amount,
-        uint256 entryFee
-    );
+    event Invested(address indexed user, address entryAsset, address feeReceiver, uint256 amount, uint256 entryFee);
 
     modifier onlyFactory() {
-        require(msg.sender == factory, "CALLER_IS_NOT_FACTORY");
+        require(msg.sender == factory, 'CALLER_IS_NOT_FACTORY');
         _;
     }
 
     // called once by the factory at time of deployment
-    function initialize(
-        PoolDetails calldata _poolDetails
-    ) external override onlyFactory {
-        require(_poolDetails.assets.length == _poolDetails.weights.length, "INVALID_ALLOCATIONS");  
+    function initialize(PoolDetails calldata _poolDetails) external override onlyFactory {
+        require(_poolDetails.assets.length == _poolDetails.weights.length, 'INVALID_ALLOCATIONS');
         poolDetails = _poolDetails;
-        setSuccessFee(_poolDetails.successFee);
-        setEntryFee(_poolDetails.entryFee);
     }
 
     function link(address _poolStorage) external override onlyFactory {
-        require(_poolStorage != address(0), "ZERO_ADDRESS");
+        require(_poolStorage != address(0), 'ZERO_ADDRESS');
         poolStorage = _poolStorage;
         PoolStorage = IPoolStorage(_poolStorage);
     }
 
-    // Must be called only inside Factory.switchStorageToNewPool function 
+    // Must be called only inside Factory.switchStorageToNewPool function
     function moveFunds(address _newPool) external override onlyFactory {
-        require(_newPool != address(0), "ZERO_ADDRESS");
+        require(_newPool != address(0), 'ZERO_ADDRESS');
         address[] memory poolAssets = poolDetails.assets; // gas savings
-        for (uint256 i; i < poolAssets.length; ++ i) {
+        for (uint256 i; i < poolAssets.length; ++i) {
             address token = poolAssets[i];
             uint256 balance = IERC20(token).balanceOf(address(this));
             if (balance > 0) {
@@ -66,18 +56,18 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         }
     }
 
-    function totalValue() external view returns (uint256 _totalValue) {
+    function totalValue() external override view returns (uint256 _totalValue) {
         address[] memory poolAssets = poolDetails.assets; // gas savings
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {
             address asset = poolAssets[i];
             uint256 valueConverted = Swapper.getReturn(asset, _entryAsset, _assetBalance(asset));
-            require(valueConverted > 0, "ORACLE_ERROR");
+            require(valueConverted > 0, 'ORACLE_ERROR');
             _totalValue += valueConverted;
         }
     }
 
-    function entryAsset() public view returns (address) {
+    function entryAsset() public override view returns (address) {
         return PoolStorage.entryAsset();
     }
 
@@ -101,32 +91,8 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
      * @dev this function updates allocation weights for all assets
      */
     function updateAllocations(uint24[] memory _weights) external override onlyFactory {
-        require(_weights.length == poolDetails.assets.length, "WRONG_LENGTH");
+        require(_weights.length == poolDetails.assets.length, 'WRONG_LENGTH');
         poolDetails.weights = _weights;
-    }
-
-    function setSuccessFee(uint16 _successFee) public onlyFactory whenPaused {
-        require(
-            _successFee <= KedrConstants._MAX_SUCCESS_FEE,
-            "TOO_BIG_FEE"
-        );
-        poolDetails.successFee = _successFee;
-    }
-
-    function setEntryFee(uint16 _entryFee) public onlyFactory whenPaused {
-        require(
-            _entryFee <= KedrConstants._MAX_ENTRY_FEE,
-            "TOO_BIG_FEE"
-        );
-        poolDetails.entryFee = _entryFee;
-    }
-
-    function setMinInvestment(uint256 _minInvestment)
-        external
-        onlyFactory
-        whenPaused
-    {
-        poolDetails.minInvestment = _minInvestment;
     }
 
     function details() external view override returns (PoolDetails memory) {
@@ -153,7 +119,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     /**
      * @dev must be implemented in inherited classes
      */
-    function invest(address _investor, uint256 _amount) public virtual override payable {}
+    function invest(address _investor, uint256 _amount) public payable virtual override {}
 
     /**
      * @dev must be implemented in inherited classes

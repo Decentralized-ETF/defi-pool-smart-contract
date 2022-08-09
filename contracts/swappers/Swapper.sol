@@ -54,7 +54,7 @@ contract Swapper is ISwapper {
         address _tokenIn,
         address _tokenOut,
         uint256 _amount
-    ) public view returns (uint256) {
+    ) public override view returns (uint256) {
         (address router, address[] memory route, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
 
         if (route.length > 1) {

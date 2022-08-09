@@ -28,4 +28,6 @@ interface IPoolStorage is IERC20 {
     function totalSuccessFeeAmountCollected() external view returns (uint256);
 
     function feeReceiver() external returns (address);
+
+    function setFeeReceiver(address feeReceiver) external;
 }
