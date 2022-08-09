@@ -56,7 +56,7 @@ contract Pool is BasePool {
         uint256 totalAmount = withdrawAmount + successFee;
 
         if (availableBalance < totalAmount) {
-
+            
         }
     }
 

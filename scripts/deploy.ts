@@ -10,8 +10,6 @@ async function main() {
     const FactoryFactory = await ethers.getContractFactory('Factory')
     const SwapperFactory = await ethers.getContractFactory('Swapper')
 
-    
-
     const routers = ROUTERS.filter(router => router.network === network)
 
     const routerAddresses = routers.map(val => val.address);
