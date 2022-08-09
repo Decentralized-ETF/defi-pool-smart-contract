@@ -4,7 +4,9 @@ pragma solidity >=0.7.6;
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '../libraries/KedrLib.sol';
+import '../libraries/KedrConstants.sol';
 import '../interfaces/IPoolStorage.sol';
+import '../interfaces/IPool.sol';
 
 contract PoolStorage is ERC20 {
     using SafeMath for uint256;
@@ -18,6 +20,7 @@ contract PoolStorage is ERC20 {
     uint256 public totalEntryFeeCollected = 0;
     uint256 public totalReceivedEntryAsset = 0;
     uint256 public totalWithdrawnEntryAsset = 0;
+    IPool internal Pool;
 
     modifier onlyFactory() {
         require(msg.sender == factory, 'CALLER_IS_NOT_FACTORY');
@@ -43,25 +46,44 @@ contract PoolStorage is ERC20 {
         entryAsset = _entryAsset;
     }
 
-    // called once by the factory during deployment
     function link(address _pool) external onlyFactory {
         require(_pool != address(0), 'ZERO_ADDRESS');
         pool = _pool;
+        Pool = IPool(_pool);
     }
  
-    function recordInvestment(uint256 _amount, uint256 _entryFee) external onlyPool {
+    function recordInvestment(address _investor, uint256 _amount, uint256 _entryFee) external onlyPool {
+        uint256 shares = calculateShares(_amount);
+        require(shares > 0, "ZERO_SHARES_AMOUNT");
+        _mint(_investor, shares);
         totalReceivedEntryAsset += _amount;
         totalEntryFeeCollected += _entryFee;
     }
 
-    function recordWithdrawal(uint256 _amount, uint256 _successFee) external onlyPool {
-        totalWithdrawnEntryAsset += _amount;
-        totalSuccessFeeCollected += _successFee;
+    function recordWithdrawal(address _investor, uint256 _shares, uint16 _successFee) external onlyPool returns (uint256 withdrawAmount, uint256 successFeeSize) {
+        withdrawAmount = calculateEntryAmount(_shares);
+        require(withdrawAmount > 0, "ZERO_WITHDRAW_AMOUNT");
+        _burn(_investor, _shares);
+        successFeeSize =  (withdrawAmount  * _successFee) / KedrConstants._FEE_DENOMINATOR;
+        totalWithdrawnEntryAsset += withdrawAmount;
+        totalSuccessFeeCollected += successFeeSize;
     }
-
 
     function setFeeReceiver(address _feeReceiver) external onlyFactory {
         require(_feeReceiver != address(0), 'ZERO_ADDRESS');
         feeReceiver = _feeReceiver;
+    }
+
+    function sharePrice() public view returns (uint256) {
+        uint256 totalValue = Pool.totalValue();
+        return totalValue / totalSupply();
+    }
+
+    function calculateShares(uint256 _entryAmount) public view returns (uint256) {
+        return _entryAmount / sharePrice();
+    }
+
+    function calculateEntryAmount(uint256 _shares) public view returns (uint256) {
+        return _shares * sharePrice();
     }
 }

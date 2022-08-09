@@ -56,13 +56,29 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     // Must be called only inside Factory.switchStorageToNewPool function 
     function moveFunds(address _newPool) external override onlyFactory {
         require(_newPool != address(0), "ZERO_ADDRESS");
-        for (uint256 i; i < poolDetails.assets.length; ++ i) {
-            address token = poolDetails.assets[i];
+        address[] memory poolAssets = poolDetails.assets; // gas savings
+        for (uint256 i; i < poolAssets.length; ++ i) {
+            address token = poolAssets[i];
             uint256 balance = IERC20(token).balanceOf(address(this));
             if (balance > 0) {
                 TransferHelper.safeTransfer(token, _newPool, balance);
             }
         }
+    }
+
+    function totalValue() external view returns (uint256 _totalValue) {
+        address[] memory poolAssets = poolDetails.assets; // gas savings
+        address _entryAsset = entryAsset(); // gas savings
+        for (uint256 i; i < poolAssets.length; ++i) {
+            address asset = poolAssets[i];
+            uint256 valueConverted = Swapper.getReturn(asset, _entryAsset, _assetBalance(asset));
+            require(valueConverted > 0, "ORACLE_ERROR");
+            _totalValue += valueConverted;
+        }
+    }
+
+    function entryAsset() public view returns (address) {
+        return PoolStorage.entryAsset();
     }
 
     function pause() external onlyFactory {
@@ -137,10 +153,14 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     /**
      * @dev must be implemented in inherited classes
      */
-    function invest(uint256 _amount, bool _defaultRouter) public virtual override payable {}
+    function invest(address _investor, uint256 _amount) public virtual override payable {}
 
     /**
      * @dev must be implemented in inherited classes
      */
     function withdraw(uint256 _amount) public virtual override {}
+
+    function _assetBalance(address _asset) internal view returns (uint256) {
+        return _asset == address(0) ? address(this).balance : IERC20(_asset).balanceOf(address(this));
+    }
 }

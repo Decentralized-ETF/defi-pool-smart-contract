@@ -6,9 +6,14 @@ interface ISwapper {
         address _tokenIn,
         address _tokenOut,
         uint256 _amount,
-        address _recipient,
-        bool _defaultRouter
+        address _recipient
     ) external returns (uint256);
+
+    function getReturn(
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amount
+    ) external view returns (uint256);
 
     // function getRouterContractAddress() external view returns (address);
 }

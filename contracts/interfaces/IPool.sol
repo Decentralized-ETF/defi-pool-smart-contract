@@ -23,6 +23,10 @@ interface IPool {
 
     function moveFunds(address _newPool) external;
 
+    function totalValue() external view returns (uint256);
+
+    function entryAsset() external view returns (address);
+
     function entryFee() external view returns (uint16);
 
     function factory() external view returns (address);
@@ -35,7 +39,7 @@ interface IPool {
 
     function poolId() external view returns (uint64);
 
-    function invest(uint256 amount, bool defaultRouter) external payable;
+    function invest(address investor, uint256 amount) external payable;
 
     function withdraw(uint256 amount) external;
 
