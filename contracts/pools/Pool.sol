@@ -25,7 +25,7 @@ contract Pool is BasePool {
         uint256 entryFee = (amount * poolDetails.entryFee) / KedrConstants._FEE_DENOMINATOR;
         uint256 invested = amount - entryFee;
         PoolStorage.recordInvestment(investor, invested, entryFee); // here minting of kTokens happens
-        
+
         TransferHelper.safeApprove(entryAsset, poolDetails.swapper, invested);
         for (uint8 i; i < poolDetails.assets.length; ++i) {
             uint256 received = Swapper.swap(entryAsset, poolDetails.assets[i], amount, address(this));
@@ -48,7 +48,7 @@ contract Pool is BasePool {
      * @param _shares - amount of kTokens to be burned to exchange for entryAsset
      */
     function withdraw(uint256 _shares) public override {
-        require(_shares > 0, "ZERO_AMOUNT");
+        require(_shares > 0, 'ZERO_AMOUNT');
         address entryAsset = PoolStorage.entryAsset();
         bool isNative = entryAsset == address(0); // by convention zero address is considered as native asset
         (uint256 withdrawAmount, uint256 successFee) = PoolStorage.recordWithdrawal(msg.sender, _shares, poolDetails.successFee);
@@ -56,7 +56,24 @@ contract Pool is BasePool {
         uint256 totalAmount = withdrawAmount + successFee;
 
         if (availableBalance < totalAmount) {
-            
+            uint256 diff = totalAmount - availableBalance;
+            address[] memory sortedAssets = _getAssetBySellPriority();
+
+            uint256 i = 0;
+            while (diff != 0) {
+                diff = _sellToExactAmount(sortedAssets[i], entryAsset, diff);
+                i++;
+            }
+        }
+
+        address feeReceiver = PoolStorage.feeReceiver();
+
+        if (isNative) {
+            TransferHelper.safeTransferETH(msg.sender, withdrawAmount);
+            TransferHelper.safeTransferETH(feeReceiver, successFee);
+        } else {
+            TransferHelper.safeTransfer(entryAsset, msg.sender, withdrawAmount);
+            TransferHelper.safeTransfer(entryAsset, feeReceiver, successFee);
         }
     }
 
@@ -67,10 +84,41 @@ contract Pool is BasePool {
         // TODO: on stage #3
     }
 
-    function _sell(address _asset) internal {
-        
+    function _sellToExactAmount(
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amountOut
+    ) internal returns (uint256 remaining) {
+        uint256 amountIn = Swapper.getReturn(_tokenOut, _tokenIn, _amountOut);
+        TransferHelper.safeApprove(_tokenIn, address(Swapper), amountIn);
+        uint256 received = Swapper.swap(_tokenIn, _tokenOut, amountIn, address(this));
+
+        if (received < _amountOut) {
+            remaining = _amountOut - received;
+        } else {
+            remaining = 0;
+        }
     }
-    
+
+    function _getAssetBySellPriority() internal view returns (address[] memory) {
+        address[] memory assets = poolDetails.assets;
+        uint24[] memory weights = poolDetails.weights;
+        uint256 length = weights.length;
+
+        for (uint256 i = 1; i < length; i++) {
+            uint24 key = weights[i];
+            address asset = assets[i];
+            int256 j = int256(i) - 1;
+            while ((int256(j) >= 0) && (weights[uint256(j)] > key)) {
+                weights[uint256(j + 1)] = weights[uint256(j)];
+                assets[uint256(j + 1)] = assets[uint256(j)];
+                j--;
+            }
+            assets[uint256(j + 1)] = asset;
+            weights[uint256(j + 1)] = key;
+        }
+        return assets;
+    }
 
     receive() external payable {}
 }
