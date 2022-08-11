@@ -167,15 +167,15 @@ contract Swapper is ISwapper {
         address[] memory route,
         uint256 _amount,
         address _recipient
-    ) internal returns (uint256 received) {
+    ) internal returns (uint256) {
         uint256[] memory amounts = IUniswapV2Router02(_router).swapExactTokensForTokens(
             _amount,
-            1, // think about general control of max slippage if need
+            1, // todo: think about general control of max slippage if need
             route,
             _recipient,
             block.timestamp
         );
-        received = amounts[amounts.length - 1];
+        return amounts[amounts.length - 1];
     }
 
     function _uniswapV3(
