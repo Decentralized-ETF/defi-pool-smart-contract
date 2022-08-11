@@ -12,40 +12,34 @@ contract Pool is BasePool {
      * Invest entry asset and get kTokens
      */
     function invest(address investor, uint256 amount) public payable override {
-        require(amount >= poolDetails.minInvestment, 'TOO_SMALL_INVESTMENT');
         address entryAsset = PoolStorage.entryAsset();
         bool isNative = entryAsset == address(0); // by convention zero address is considered as native asset
-        if (isNative) {
-            require(msg.value > poolDetails.minInvestment, 'TOO_SMALL_MSG_VALUE_INVESTMENT');
-            TransferHelper.safeTransferETH(address(this), msg.value);
-            amount = msg.value; // adjust amount to msg.value
-        } else {
-            TransferHelper.safeTransferFrom(entryAsset, msg.sender, address(this), amount);
-        }
+        if (isNative) amount = msg.value;
+        require(amount >= poolDetails.minInvestment, 'TOO_SMALL_INVESTMENT');
         uint256 entryFee = (amount * poolDetails.entryFee) / KedrConstants._FEE_DENOMINATOR;
         uint256 invested = amount - entryFee;
         PoolStorage.recordInvestment(investor, invested, entryFee); // here minting of kTokens happens
+        
+        _uniTransferFrom(entryAsset, msg.sender, address(this), amount);
+
+        // Transfer fee from user to feeReceiver
+        address feeReceiver = PoolStorage.feeReceiver();
+        if (entryFee > 0) {
+            _uniTransfer(entryAsset, feeReceiver, entryFee);
+        }
 
         address[] memory assets = poolDetails.assets;
         uint24[] memory weights = poolDetails.weights;
+
         TransferHelper.safeApprove(entryAsset, address(Swapper), invested);
         for (uint8 i; i < assets.length; ++i) {
             uint256 entryAmount = (invested * weights[i]) / weightsSum;
-            uint256 currentBalance =  _assetBalance(entryAsset);
+            uint256 currentBalance = _assetBalance(entryAsset);
             uint256 adjustedAmount = currentBalance < entryAmount ? currentBalance : entryAmount;
             uint256 received = Swapper.swap(entryAsset, assets[i], adjustedAmount, address(this));
             require(received > 0, 'NO_TOKENS_RECEIVED');
         }
 
-        address feeReceiver = PoolStorage.feeReceiver();
-        if (entryFee > 0) {
-            if (isNative) {
-                TransferHelper.safeTransferETH(feeReceiver, entryFee);
-            } else {
-                TransferHelper.safeTransfer(entryAsset, feeReceiver, entryFee);
-            }
-        }
-        rebalance();
         emit Invested(msg.sender, entryAsset, feeReceiver, invested, entryFee);
     }
 
@@ -68,7 +62,7 @@ contract Pool is BasePool {
             totalReceived += _sellToExactAmount(assets[i], entryAsset, amountOut);
         }
 
-        require(totalReceived == totalWithdraw, "INCORRECT_OPERATION");
+        require(totalReceived == totalWithdraw, 'INCORRECT_OPERATION');
         address feeReceiver = PoolStorage.feeReceiver();
 
         if (isNative) {
@@ -100,8 +94,6 @@ contract Pool is BasePool {
                 // TODO: need to sell more
             }
         }
-        
-
     }
 
     function _sellToExactAmount(
@@ -110,7 +102,7 @@ contract Pool is BasePool {
         uint256 _amountOut
     ) internal returns (uint256 received) {
         uint256 amountIn = Swapper.getReturn(_tokenOut, _tokenIn, _amountOut);
-        require(_assetBalance(_tokenIn) >= amountIn, "INSUFFIENT_FUNDS");
+        require(_assetBalance(_tokenIn) >= amountIn, 'INSUFFIENT_FUNDS');
         TransferHelper.safeApprove(_tokenIn, address(Swapper), amountIn);
         received = Swapper.swap(_tokenIn, _tokenOut, amountIn, address(this));
     }
@@ -136,6 +128,24 @@ contract Pool is BasePool {
             weights[uint256(j + 1)] = key;
         }
         return assets;
+    }
+
+    function _uniTransferFrom(address token, address from, address to, uint256 amount) internal {
+        bool isNative = token == address(0);
+        if (isNative) {
+            TransferHelper.safeTransferETH(to, amount);
+        } else {
+            TransferHelper.safeTransferFrom(token, from, to, amount);
+        }
+    }
+
+    function _uniTransfer(address token, address to, uint256 amount) internal {
+        bool isNative = token == address(0);
+        if (isNative) {
+            TransferHelper.safeTransferETH(to, amount);
+        } else {
+            TransferHelper.safeTransfer(token, to, amount);
+        }
     }
 
     receive() external payable {}

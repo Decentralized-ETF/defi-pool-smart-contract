@@ -2,6 +2,9 @@
 pragma solidity >=0.7.6;
 
 import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
+import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
+import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol';
+import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '../interfaces/ISwapper.sol';
 import '../libraries/KedrConstants.sol';
@@ -9,7 +12,7 @@ import '../libraries/KedrConstants.sol';
 contract Swapper is ISwapper {
     mapping(address => uint8) public routerTypes; // router to ROUTER_TYPE
     address[] internal routers; // list of supported routers
-    address[] internal quoteTokens; // list of tokens to build composite routes if there is no direct pair
+    address[] internal routeTokens; // list of tokens to build composite routes if there is no direct pair
     address public defaultRouter; // default router to be used when don't want to spend gas to find best router
 
     constructor(
@@ -35,13 +38,17 @@ contract Swapper is ISwapper {
         address _recipient
     ) external override returns (uint256) {
         require(_amount > 0, 'ZERO_AMOUNT');
+        TransferHelper.safeTransferFrom(_tokenIn, msg.sender, address(this), _amount);
         (address router, address[] memory route, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
         require(route.length > 1, 'NO_ROUTE');
+        // TODO: check for native here if needed
+        TransferHelper.safeApprove(route[0], router, _amount);
+
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_recipient);
         if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
             _balancerSwap(router, _tokenIn, _tokenOut, _amount, _recipient);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
-            _uniswapV2(router, _tokenIn, _tokenOut, _amount, _recipient);
+            _uniswapV2(router, route, _amount, _recipient);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
             _uniswapV3(router, _tokenIn, _tokenOut, _amount, _recipient);
         } else {
@@ -49,7 +56,6 @@ contract Swapper is ISwapper {
         }
         return IERC20(_tokenOut).balanceOf(_recipient) - balanceBefore;
     }
-
 
     function getReturn(
         address _tokenIn,
@@ -121,12 +127,27 @@ contract Swapper is ISwapper {
         address router,
         address tokenIn,
         address tokenOut
-    ) internal view returns (address[] memory) {
+    ) internal view returns (address[] memory route) {
         // TODO: complete
-        address[] memory route;
-        route[0] = tokenIn;
-        route[1] = tokenOut;
-        return route;
+        address factory = IUniswapV2Router02(router).factory();
+
+        if (IUniswapV2Factory(factory).getPair(tokenIn, tokenIn) != address(0)) {
+            route[0] = tokenIn;
+            route[1] = tokenOut;
+        } else {
+            address[] memory tokens = routeTokens; // gas saving
+            address middleToken;
+            for (uint256 i; i < tokens.length; ++i) {
+                if (IUniswapV2Factory(factory).getPair(tokenIn, tokens[i]) != address(0) && IUniswapV2Factory(factory).getPair(tokens[i], tokenOut) != address(0)) {
+                    middleToken = tokens[i];
+                    break;
+                }
+            }
+            require(middleToken != address(0), "CANT_FIND_ROUTE");
+            route[0] = tokenIn;
+            route[1] = middleToken;
+            route[2] = tokenOut;
+        }
     }
 
     function _getV3Route(
@@ -143,23 +164,18 @@ contract Swapper is ISwapper {
 
     function _uniswapV2(
         address _router,
-        address _tokenIn,
-        address _tokenOut,
+        address[] memory route,
         uint256 _amount,
         address _recipient
-    ) internal {
-        // path = new address[](2);
-        // path[0] = _tokenIn;
-        // path[1] = _tokenOut;
-        // uint256[] minimumAmountOut = router.getAmountsOut(_amount, path);
-        // uint256[] amounts = router.swapExactTokensForTokens(
-        //     _amount,
-        //     minimumAmountOut[1],
-        //     path,
-        //     _recipient,
-        //     _timestamp
-        // );
-        // return amounts[1];
+    ) internal returns (uint256 received) {
+        uint256[] memory amounts = IUniswapV2Router02(_router).swapExactTokensForTokens(
+            _amount,
+            1, // think about general control of max slippage if need
+            route,
+            _recipient,
+            block.timestamp
+        );
+        received = amounts[amounts.length - 1];
     }
 
     function _uniswapV3(
