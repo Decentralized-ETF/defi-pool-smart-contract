@@ -50,7 +50,7 @@ contract Swapper is ISwapper {
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
             _uniswapV2(router, route, _amount, _recipient);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
-            _uniswapV3(router, _tokenIn, _tokenOut, _amount, _recipient);
+            _uniswapV3(router, route, _amount, _recipient);
         } else {
             revert('UNSUPPORTED_ROUTER_TYPE');
         }
@@ -68,9 +68,9 @@ contract Swapper is ISwapper {
             if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
                 return _balancerAmountOut(router, _tokenIn, _tokenOut, _amount);
             } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
-                return _uniswapV2AmountOut(router, _tokenIn, _tokenOut, _amount);
+                return _uniswapV2AmountOut(router, route, _amount);
             } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
-                return _uniswapV3AmountOut(router, _tokenIn, _tokenOut, _amount);
+                return _uniswapV3AmountOut(router, route, _amount);
             } else {
                 return 0;
             }
@@ -180,8 +180,7 @@ contract Swapper is ISwapper {
 
     function _uniswapV3(
         address _router,
-        address _tokenIn,
-        address _tokenOut,
+        address[] memory _route,
         uint256 _amount,
         address _recipient
     ) internal {
@@ -210,18 +209,16 @@ contract Swapper is ISwapper {
 
     function _uniswapV2AmountOut(
         address _router,
-        address _tokenIn,
-        address _tokenOut,
+        address[] memory _path,
         uint256 _amount
     ) internal view returns (uint256) {
-        // TODO: complete
-        return _amount;
+        uint256[] memory amounts = IUniswapV2Router02(_router).getAmountsOut(_amount, _path);
+        return amounts[amounts.length - 1];
     }
 
     function _uniswapV3AmountOut(
         address _router,
-        address _tokenIn,
-        address _tokenOut,
+        address[] memory _route,
         uint256 _amount
     ) internal view returns (uint256) {
         // TODO: complete
