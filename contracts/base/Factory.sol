@@ -56,7 +56,7 @@ contract Factory is Ownable, ReentrancyGuard {
      */
     function createPool(IPool.PoolDetails memory poolDetails, address _swapper) public returns (address pool) {
         uint256 poolId = pools.length + 1;
-        bytes memory poolBytecode = abi.encodePacked(type(Pool).creationCode, poolId, _swapper);
+        bytes memory poolBytecode = abi.encodePacked(type(Pool).creationCode, abi.encode(poolId, _swapper));
         pool = _deploy(poolBytecode);
         IPool(pool).initialize(poolDetails);
         pools.push(pool);
@@ -71,7 +71,7 @@ contract Factory is Ownable, ReentrancyGuard {
         string memory entrySymbol = IERC20Metadata(_entryAsset).symbol();
         bytes memory symbol = abi.encodePacked('k', entrySymbol);
         bytes memory name = abi.encodePacked('KEDR_', entrySymbol);
-        bytes memory storageBytecode = abi.encodePacked(type(PoolStorage).creationCode, id, _entryAsset, defaultFeeReceiver, name, symbol);
+        bytes memory storageBytecode = abi.encodePacked(type(PoolStorage).creationCode, abi.encode(id, _entryAsset, defaultFeeReceiver, symbol, name));
         poolStorage = _deploy(storageBytecode);
         poolStorages.push(poolStorage);
         emit PoolStorageCreated(poolStorage, id);
