@@ -19,7 +19,7 @@ contract Pool is BasePool {
         uint256 entryFee = (amount * poolDetails.entryFee) / KedrConstants._FEE_DENOMINATOR;
         uint256 invested = amount - entryFee;
         PoolStorage.recordInvestment(investor, invested, entryFee); // here minting of kTokens happens
-        
+
         _uniTransferFrom(entryAsset, msg.sender, address(this), amount);
 
         // Transfer fee from user to feeReceiver
@@ -33,11 +33,13 @@ contract Pool is BasePool {
 
         TransferHelper.safeApprove(entryAsset, address(Swapper), invested);
         for (uint8 i; i < assets.length; ++i) {
-            uint256 entryAmount = (invested * weights[i]) / weightsSum;
-            uint256 currentBalance = _assetBalance(entryAsset);
-            uint256 adjustedAmount = currentBalance < entryAmount ? currentBalance : entryAmount;
-            uint256 received = Swapper.swap(entryAsset, assets[i], adjustedAmount, address(this));
-            require(received > 0, 'NO_TOKENS_RECEIVED');
+            if (assets[i] != entryAsset) {
+                uint256 entryAmount = (invested * weights[i]) / weightsSum;
+                uint256 currentBalance = _assetBalance(entryAsset);
+                uint256 adjustedAmount = currentBalance < entryAmount ? currentBalance : entryAmount;
+                uint256 received = Swapper.swap(entryAsset, assets[i], adjustedAmount, address(this));
+                require(received > 0, 'NO_TOKENS_RECEIVED');
+            }
         }
 
         emit Invested(msg.sender, entryAsset, feeReceiver, invested, entryFee);
@@ -130,7 +132,12 @@ contract Pool is BasePool {
         return assets;
     }
 
-    function _uniTransferFrom(address token, address from, address to, uint256 amount) internal {
+    function _uniTransferFrom(
+        address token,
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
         bool isNative = token == address(0);
         if (isNative) {
             TransferHelper.safeTransferETH(to, amount);
@@ -139,7 +146,11 @@ contract Pool is BasePool {
         }
     }
 
-    function _uniTransfer(address token, address to, uint256 amount) internal {
+    function _uniTransfer(
+        address token,
+        address to,
+        uint256 amount
+    ) internal {
         bool isNative = token == address(0);
         if (isNative) {
             TransferHelper.safeTransferETH(to, amount);
