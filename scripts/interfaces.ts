@@ -6,6 +6,13 @@ export interface Routers {
     isDefault: boolean;
 }
 
+export interface TestRouter {
+    name: string;
+    network: string;
+    factoryName: string;
+    type: "1" | "2" | "3";
+}
+
 export interface PoolDetails {
     swapper: string;
     minInvestment: string;

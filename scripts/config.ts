@@ -1,4 +1,4 @@
-import {Routers, PoolDetails, Token} from "./interfaces";
+import {Routers, PoolDetails, Token, TestRouter} from "./interfaces";
 
 export const ROUTERS: Routers[] = [
     {   
@@ -24,6 +24,27 @@ export const ROUTERS: Routers[] = [
     }
 ]
 
+export const TEST_ROUTERS: TestRouter[] = [
+    {
+        name: "UniswapV2RouterMock",
+        factoryName: "UniswapV2FactoryMock",
+        network: "hardhat",
+        type: "2",
+    },
+    {
+        name: "",
+        factoryName: "",
+        network: "hardhat",
+        type: "2",
+    },
+    {
+        name: "",
+        factoryName: "",
+        network: "hardhat",
+        type: "3",
+    }
+]
+
 export const TOKENS: Token[] = [
     {
         name: "USDT",
@@ -31,4 +52,10 @@ export const TOKENS: Token[] = [
         address: "0x55d398326f99059fF775485246999027B3197955"
     }
 ]
+
+export const poolParams = {
+    successFee: "500",
+    entryFee: "1000",
+    minInvestment: "1000"
+}
   
