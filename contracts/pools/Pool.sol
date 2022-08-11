@@ -60,8 +60,10 @@ contract Pool is BasePool {
         uint256 totalReceived;
 
         for (uint256 i; i < assets.length; ++i) {
-            uint256 amountOut = (totalWithdraw * weights[i]) / weightsSum;
-            totalReceived += _sellToExactAmount(assets[i], entryAsset, amountOut);
+            if (assets[i] != entryAsset) {
+                uint256 amountOut = (totalWithdraw * weights[i]) / weightsSum;
+                totalReceived += _sellToExactAmount(assets[i], entryAsset, amountOut);
+            }
         }
 
         require(totalReceived == totalWithdraw, 'INCORRECT_OPERATION');
