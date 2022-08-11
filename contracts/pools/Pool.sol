@@ -26,9 +26,14 @@ contract Pool is BasePool {
         uint256 invested = amount - entryFee;
         PoolStorage.recordInvestment(investor, invested, entryFee); // here minting of kTokens happens
 
-        TransferHelper.safeApprove(entryAsset, poolDetails.swapper, invested);
-        for (uint8 i; i < poolDetails.assets.length; ++i) {
-            uint256 received = Swapper.swap(entryAsset, poolDetails.assets[i], amount, address(this));
+        address[] memory assets = poolDetails.assets;
+        uint24[] memory weights = poolDetails.weights;
+        TransferHelper.safeApprove(entryAsset, address(Swapper), invested);
+        for (uint8 i; i < assets.length; ++i) {
+            uint256 entryAmount = (invested * weights[i]) / weightsSum;
+            uint256 currentBalance =  _assetBalance(entryAsset);
+            uint256 adjustedAmount = currentBalance < entryAmount ? currentBalance : entryAmount;
+            uint256 received = Swapper.swap(entryAsset, assets[i], adjustedAmount, address(this));
             require(received > 0, 'NO_TOKENS_RECEIVED');
         }
 
@@ -40,6 +45,7 @@ contract Pool is BasePool {
                 TransferHelper.safeTransfer(entryAsset, feeReceiver, entryFee);
             }
         }
+        rebalance();
         emit Invested(msg.sender, entryAsset, feeReceiver, invested, entryFee);
     }
 
@@ -52,20 +58,17 @@ contract Pool is BasePool {
         address entryAsset = PoolStorage.entryAsset();
         bool isNative = entryAsset == address(0); // by convention zero address is considered as native asset
         (uint256 withdrawAmount, uint256 successFee) = PoolStorage.recordWithdrawal(msg.sender, _shares, poolDetails.successFee);
-        uint256 availableBalance = _assetBalance(entryAsset);
-        uint256 totalAmount = withdrawAmount + successFee;
+        uint256 totalWithdraw = withdrawAmount + successFee;
+        address[] memory assets = poolDetails.assets;
+        uint24[] memory weights = poolDetails.weights;
+        uint256 totalReceived;
 
-        if (availableBalance < totalAmount) {
-            uint256 diff = totalAmount - availableBalance;
-            address[] memory sortedAssets = _getAssetBySellPriority();
-
-            uint256 i = 0;
-            while (diff != 0) {
-                diff = _sellToExactAmount(sortedAssets[i], entryAsset, diff);
-                i++;
-            }
+        for (uint256 i; i < assets.length; ++i) {
+            uint256 amountOut = (totalWithdraw * weights[i]) / weightsSum;
+            totalReceived += _sellToExactAmount(assets[i], entryAsset, amountOut);
         }
 
+        require(totalReceived == totalWithdraw, "INCORRECT_OPERATION");
         address feeReceiver = PoolStorage.feeReceiver();
 
         if (isNative) {
@@ -78,28 +81,43 @@ contract Pool is BasePool {
     }
 
     /**
-     * Rebalance pool to make rigth allocations
+     * Sell and buys pool assets to reach correct allocations
      */
     function rebalance() public override {
-        // TODO: on stage #3
+        address[] memory assets = poolDetails.assets;
+        uint24[] memory weights = poolDetails.weights;
+        uint256 length = weights.length;
+        (uint256 totalValue, uint256[] memory values) = totalValues();
+        address _entryAsset = entryAsset();
+
+        for (uint256 i; i < length; ++i) {
+            address asset = assets[i];
+            uint256 targetValue = (totalValue * weights[i]) / weightsSum;
+            if (targetValue > values[i]) {
+                // TODO: need to buy more
+                _sellToExactAmount(asset, _entryAsset, targetValue - values[i]);
+            } else {
+                // TODO: need to sell more
+            }
+        }
+        
+
     }
 
     function _sellToExactAmount(
         address _tokenIn,
         address _tokenOut,
         uint256 _amountOut
-    ) internal returns (uint256 remaining) {
+    ) internal returns (uint256 received) {
         uint256 amountIn = Swapper.getReturn(_tokenOut, _tokenIn, _amountOut);
+        require(_assetBalance(_tokenIn) >= amountIn, "INSUFFIENT_FUNDS");
         TransferHelper.safeApprove(_tokenIn, address(Swapper), amountIn);
-        uint256 received = Swapper.swap(_tokenIn, _tokenOut, amountIn, address(this));
-
-        if (received < _amountOut) {
-            remaining = _amountOut - received;
-        } else {
-            remaining = 0;
-        }
+        received = Swapper.swap(_tokenIn, _tokenOut, amountIn, address(this));
     }
 
+    /**
+     * Sorting happens from the biggest weight asset to lowest
+     */
     function _getAssetBySellPriority() internal view returns (address[] memory) {
         address[] memory assets = poolDetails.assets;
         uint24[] memory weights = poolDetails.weights;
