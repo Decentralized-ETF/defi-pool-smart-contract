@@ -20,8 +20,44 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 });
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.4",
+  solidity: {
+    compilers: [
+      {
+        version: "0.8.4",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 999999,
+          },
+          evmVersion: "istanbul",
+        },
+      },
+      {
+        version: "0.5.16",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 999999,
+          },
+          evmVersion: "istanbul",
+        },
+      },
+      {
+        version: "0.6.6",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 999999,
+          },
+          evmVersion: "istanbul",
+        },
+      },
+    ],
+  },
   networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true
+    },
     mumbai: {
       url: "https://rpc-mumbai.maticvigil.com/",
       // network_id: 80001,

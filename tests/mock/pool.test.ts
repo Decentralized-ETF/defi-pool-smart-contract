@@ -17,7 +17,7 @@ const { expect } = chai;
 
 describe('Pool Contract', () => {
     let deployer: Deployer
-    let signerAcc: SignerWithAddress, signer: string, bob: string, sam: string
+    let governanceAcc: SignerWithAddress, governance: string, dmitryAcc: SignerWithAddress, dmitry: string
     let contracts: any;
     let poolAddress: string;
     let poolStorageAddress: string;
@@ -27,13 +27,17 @@ describe('Pool Contract', () => {
     let poolStorage: PoolStorage;
     let entryTokenBalanceBeforeInvest: BigNumber;
     let entryAmountToInvest: BigNumber = ethers.utils.parseEther(poolParams.minInvestment)
-    let entryAmountToMint: BigNumber = ethers.utils.parseEther((parseInt(poolParams.minInvestment) * 10).toString())
+    let entryAmountToMint: BigNumber = ethers.utils.parseEther((parseInt(poolParams.minInvestment) * 100).toString())
     let tokenA: MockToken, tokenB: MockToken, tokenC: MockToken
+    let amountToAddLiquidityUSD: BigNumber = ethers.utils.parseEther(poolParams.minInvestment).mul(10)
+    let amountToAddLiquidityBTC: BigNumber = ethers.utils.parseEther(poolParams.minInvestment).mul(10)
 
     before(async function () {
         this.signers = await ethers.getSigners()
-        signerAcc = this.signers[0]
-        signer = signerAcc.address
+        governanceAcc = this.signers[0]
+        dmitryAcc = this.signers[0]
+        governance = governanceAcc.address
+        dmitry = dmitryAcc.address
 
         deployer = new Deployer()
 
@@ -54,11 +58,27 @@ describe('Pool Contract', () => {
         poolStorage = await ethers.getContractAt("PoolStorage", poolStorageAddress);
         expect(await contracts.factory.poolsCount()).to.equal(1)
 
-        await tokenA.mint(signer, entryAmountToMint)
-        entryTokenBalanceBeforeInvest = await tokenA.balanceOf(signer)
-        await tokenA.approve(pool.address, entryAmountToMint)
-        console.log("entry token address: ", tokenA.address)
-        console.log("entryTokenBalanceBeforeInvest: ", entryTokenBalanceBeforeInvest.toString())
+        await tokenA.mint(governance, entryAmountToMint)
+        await tokenB.mint(governance, entryAmountToMint)
+        await tokenC.mint(governance, entryAmountToMint)
+
+        await tokenA.mint(pool.address, entryAmountToMint)
+        await tokenB.mint(pool.address, entryAmountToMint)
+        await tokenC.mint(pool.address, entryAmountToMint)
+        // mint and approve entry asset to invest
+        await tokenA.mint(dmitry, entryAmountToMint)
+        entryTokenBalanceBeforeInvest = await tokenA.balanceOf(dmitry)
+        await tokenA.connect(dmitryAcc).approve(pool.address, entryAmountToMint)
+
+        // Create pairs and add liquidity on UniswapRouter
+        const deadline = (await ethers.provider.getBlock("latest")).timestamp + 1000000
+        await tokenA.approve(contracts.router.address, entryAmountToMint)
+        await tokenB.approve(contracts.router.address, entryAmountToMint)
+        await tokenC.approve(contracts.router.address, entryAmountToMint)
+
+        await contracts.router.addLiquidity(tokenA.address, tokenB.address, amountToAddLiquidityUSD, amountToAddLiquidityBTC, 0, 0, governance, deadline)
+        await contracts.router.addLiquidity(tokenA.address, tokenC.address, amountToAddLiquidityUSD, amountToAddLiquidityBTC, 0, 0, governance, deadline)
+
     })
 
     describe('Pool', async function () {
@@ -74,12 +94,18 @@ describe('Pool Contract', () => {
             expect(poolDetails[2]).to.equal(parseInt(poolParams.entryFee))
             expect(poolDetails[3]).to.equal(parseInt(poolParams.successFee))
             expect(await pool.poolStorage()).to.equal(poolStorageAddress)
+            //Todo add check weiths sum
         })
 
         it('Invest', async function () {
 
-            await pool.invest(signer, entryAmountToInvest.mul(2))
-            expect(await tokenA.balanceOf(signer)).to.equal(entryTokenBalanceBeforeInvest.sub(entryAmountToInvest))
+            await pool.connect(dmitryAcc).invest(governance, entryAmountToInvest.mul(2))
+            expect(await tokenA.balanceOf(dmitry)).to.equal(entryTokenBalanceBeforeInvest.sub(entryAmountToInvest))
+            //ToDo check balances of kToken, shares
+        })
+
+        it('Second Invest from other account', async function () {
+
         })
     })
 })

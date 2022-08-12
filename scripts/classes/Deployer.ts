@@ -30,11 +30,11 @@ export class Deployer {
     const [governance] = await ethers.getSigners()
 
     const routersConfig = _routers.filter(router => router.network === "hardhat" && router.type === routerType.toString())
-    const {router} = await this.deployMockRouter(routersConfig[0])
+    const {router, routerFactory} = await this.deployMockRouter(routersConfig[0])
 
     const Swapper = await this.deploy("Swapper", [[router.address], [routerType], router.address]);
     const Factory = await this.deploy("Factory", [governance.address, Swapper.address]);
-    return { swapper: Swapper, factory: Factory, router }
+    return { swapper: Swapper, factory: Factory, router, routerFactory }
   }
 
   async deployMockRouter(routerData: TestRouter){
