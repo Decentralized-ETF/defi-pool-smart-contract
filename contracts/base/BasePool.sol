@@ -45,6 +45,12 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         PoolStorage = IPoolStorage(_poolStorage);
     }
 
+    // resets poolStorage to address(0), used only during Factory.switchStorageToNewPool function
+    function unlink() external override onlyFactory {
+        poolStorage = address(0);
+        PoolStorage = IPoolStorage(address(0));
+    }
+
     // Must be called only inside Factory.switchStorageToNewPool function
     function moveFunds(address _newPool) external override onlyFactory {
         require(_newPool != address(0), 'ZERO_ADDRESS');

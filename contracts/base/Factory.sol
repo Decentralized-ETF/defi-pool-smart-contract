@@ -47,6 +47,7 @@ contract Factory is Ownable, ReentrancyGuard {
     function switchStorageToNewPool(address _newPool, address _poolStorage) external onlyOwner {
         address oldPool = IPoolStorage(_poolStorage).pool();
         IPool(oldPool).moveFunds(_newPool);
+        IPool(oldPool).unlink();
         IPool(_newPool).link(_poolStorage);
         IPoolStorage(_poolStorage).link(_newPool);
     }

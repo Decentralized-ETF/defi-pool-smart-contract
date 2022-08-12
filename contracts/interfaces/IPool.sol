@@ -21,6 +21,8 @@ interface IPool {
 
     function link(address _poolStorage) external;
 
+    function unlink() external;
+
     function moveFunds(address _newPool) external;
 
     function totalValue() external view returns (uint256);
