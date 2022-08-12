@@ -80,7 +80,7 @@ contract PoolStorage is ERC20 {
         if (_totalSupply == 0) {
             return 1; // initial price
         } else {
-            return totalValue / _totalSupply;
+            return totalValue / _totalSupply; // check: maybe need to add multiplier here, not sure
         }
         
     }

@@ -108,4 +108,12 @@ contract Factory is Ownable, ReentrancyGuard {
     function setFeeReceiver(address _poolStorage, address _receiver) external onlyOwner {
         IPoolStorage(_poolStorage).setFeeReceiver(_receiver);
     }
+
+    function updateAllocations(address _pool, uint24[] memory _weights) external onlyOwner {
+        IPool(_pool).updateAllocations(_weights);
+    }
+
+    function setWeight(address _pool, address asset, uint24 weight) external onlyOwner {
+        IPool(_pool).setWeight(asset, weight);
+    }
 }
