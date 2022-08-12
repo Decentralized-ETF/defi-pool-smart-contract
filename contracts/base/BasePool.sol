@@ -64,7 +64,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         }
     }
 
-    function totalValue() public view override returns (uint256 _totalValue) {
+    function totalValue() public override returns (uint256 _totalValue) {
         address[] memory poolAssets = poolDetails.assets; // gas savings
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {
@@ -78,7 +78,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     /**
      * Returns totalValue() with array of values per each asset
      */
-    function totalValues() internal view returns (uint256 _totalValue, uint256[] memory _values) {
+    function totalValues() internal returns (uint256 _totalValue, uint256[] memory _values) {
         address[] memory poolAssets = poolDetails.assets; // gas savings
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {

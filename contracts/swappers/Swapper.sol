@@ -2,6 +2,9 @@
 pragma solidity >=0.7.6;
 
 import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
+import '@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol';
+import '@uniswap/v3-periphery/contracts/interfaces/IPeripheryImmutableState.sol';
+import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol';
 import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
@@ -14,11 +17,16 @@ contract Swapper is ISwapper {
     address[] internal routers; // list of supported routers
     address[] internal routeTokens; // list of tokens to build composite routes if there is no direct pair
     address public defaultRouter; // default router to be used when don't want to spend gas to find best router
+    address public uniswapV3quoter; // can be empty if no V3 routers are used
+    uint24 internal FEE_500 = 500;
+    uint24 internal FEE_3000 = 3000;
+    uint24 internal FEE_10000 = 10000;
 
     constructor(
         address[] memory _routers,
         uint8[] memory _routerTypes,
-        address _defaultRouter
+        address _defaultRouter,
+        address _uniswapV3quoter
     ) {
         require(_routers.length == _routerTypes.length, 'INVALID_ROUTERS_DATA');
         routers = _routers;
@@ -29,6 +37,7 @@ contract Swapper is ISwapper {
         }
         require(routerTypes[_defaultRouter] > 0, 'INVALID DEFAULT_ROUTER');
         defaultRouter = _defaultRouter;
+        uniswapV3quoter = _uniswapV3quoter;
     }
 
     function swap(
@@ -39,18 +48,17 @@ contract Swapper is ISwapper {
     ) external override returns (uint256) {
         require(_amount > 0, 'ZERO_AMOUNT');
         TransferHelper.safeTransferFrom(_tokenIn, msg.sender, address(this), _amount);
-        (address router, address[] memory route, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
-        require(route.length > 1, 'NO_ROUTE');
+        (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
         // TODO: check for native here if needed
-        TransferHelper.safeApprove(route[0], router, _amount);
+        TransferHelper.safeApprove(_tokenIn, router, _amount);
 
         uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_recipient);
         if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
             _balancerSwap(router, _tokenIn, _tokenOut, _amount, _recipient);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
-            _uniswapV2(router, route, _amount, _recipient);
+            _uniswapV2(router, getAddressRoute(router, routerType, _tokenIn, _tokenOut), _amount, _recipient);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
-            _uniswapV3(router, route, _amount, _recipient);
+            _uniswapV3(router, getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amount, _recipient);
         } else {
             revert('UNSUPPORTED_ROUTER_TYPE');
         }
@@ -61,27 +69,23 @@ contract Swapper is ISwapper {
         address _tokenIn,
         address _tokenOut,
         uint256 _amount
-    ) public view override returns (uint256) {
+    ) public override returns (uint256) {
         if (_tokenIn == _tokenOut) return _amount;
 
-        (address router, address[] memory route, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
+        (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
 
-        if (route.length > 1) {
-            if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
-                return _balancerAmountOut(router, _tokenIn, _tokenOut, _amount);
-            } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
-                return _uniswapV2AmountOut(router, route, _amount);
-            } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
-                return _uniswapV3AmountOut(router, route, _amount);
-            } else {
-                return 0;
-            }
+        if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
+            return _balancerAmountOut(router, _tokenIn, _tokenOut, _amount);
+        } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
+            return _uniswapV2AmountOut(router, getAddressRoute(router, routerType, _tokenIn, _tokenOut), _amount);
+        } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
+            return _uniswapV3AmountOut(getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amount);
         } else {
             return 0;
         }
     }
 
-    function getRoute(
+    function getAddressRoute(
         address router,
         uint8 routerType,
         address tokenIn,
@@ -91,26 +95,28 @@ contract Swapper is ISwapper {
             route = _getBalancerRoute(router, tokenIn, tokenOut);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
             route = _getV2Route(router, tokenIn, tokenOut);
-        } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
-            route = _getV3Route(router, tokenIn, tokenOut);
         } else {
             address[] memory _route;
             route = _route;
         }
     }
 
-    function getBestRouter(address tokenIn, address tokenOut)
-        internal
-        view
-        returns (
-            address router,
-            address[] memory route,
-            uint8 routerType
-        )
-    {
+    function getBytesRoute(
+        address router,
+        uint8 routerType,
+        address tokenIn,
+        address tokenOut
+    ) internal view returns (bytes memory route) {
+        if (routerType == KedrConstants._ROUTER_TYPE_V3) {
+            route = _getV3Route(router, tokenIn, tokenOut);
+        } else {
+            route = bytes('');
+        }
+    }
+
+    function getBestRouter(address tokenIn, address tokenOut) internal view returns (address router, uint8 routerType) {
         router = defaultRouter;
         routerType = routerTypes[router];
-        route = getRoute(router, routerType, tokenIn, tokenOut);
     }
 
     function _getBalancerRoute(
@@ -140,12 +146,15 @@ contract Swapper is ISwapper {
             address[] memory tokens = routeTokens; // gas saving
             address middleToken;
             for (uint256 i; i < tokens.length; ++i) {
-                if (IUniswapV2Factory(factory).getPair(tokenIn, tokens[i]) != address(0) && IUniswapV2Factory(factory).getPair(tokens[i], tokenOut) != address(0)) {
+                if (
+                    IUniswapV2Factory(factory).getPair(tokenIn, tokens[i]) != address(0) &&
+                    IUniswapV2Factory(factory).getPair(tokens[i], tokenOut) != address(0)
+                ) {
                     middleToken = tokens[i];
                     break;
                 }
             }
-            require(middleToken != address(0), "CANT_FIND_ROUTE");
+            require(middleToken != address(0), 'CANT_FIND_ROUTE');
             address[] memory route = new address[](3);
             route[0] = tokenIn;
             route[1] = middleToken;
@@ -158,12 +167,46 @@ contract Swapper is ISwapper {
         address router,
         address tokenIn,
         address tokenOut
-    ) internal view returns (address[] memory) {
-        // TODO: complete
-        address[] memory route;
-        route[0] = tokenIn;
-        route[1] = tokenOut;
-        return route;
+    ) internal view returns (bytes memory route) {
+        address factory = IPeripheryImmutableState(router).factory();
+        (route, ) = _checkEveryFeeForV3Pool(factory, tokenIn, tokenOut);
+
+        if (route.length == 0) {
+            // finding multi-hop route:
+            address[] memory tokens = routeTokens; // gas saving
+
+            for (uint256 i; i < tokens.length; ++i) {
+                (bytes memory firstHop, uint24 firstFeeTier) = _checkEveryFeeForV3Pool(factory, tokenIn, tokens[i]);
+                if (firstHop.length > 0) {
+                    (bytes memory secondHop, uint24 secondFeeTier) = _checkEveryFeeForV3Pool(factory, tokens[i], tokenOut);
+                    if (secondHop.length > 0) {
+                        route = abi.encodePacked(tokenIn, firstFeeTier, tokens[i], secondFeeTier, tokenOut);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    function _checkEveryFeeForV3Pool(
+        address factory,
+        address tokenIn,
+        address tokenOut
+    ) internal view returns (bytes memory route, uint24 fee) {
+        IUniswapV3Factory Factory = IUniswapV3Factory(factory);
+
+        if (Factory.getPool(tokenIn, tokenOut, FEE_500) != address(0)) {
+            route = abi.encodePacked(tokenIn, FEE_500, tokenOut);
+            fee = FEE_500;
+        } else if (Factory.getPool(tokenIn, tokenOut, FEE_3000) != address(0)) {
+            route = abi.encodePacked(tokenIn, FEE_3000, tokenOut);
+            fee = FEE_3000;
+        } else if (Factory.getPool(tokenIn, tokenOut, FEE_3000) != address(0)) {
+            route = abi.encodePacked(tokenIn, FEE_10000, tokenOut);
+            fee = FEE_10000;
+        } else {
+            route = bytes('');
+        }
     }
 
     function _uniswapV2(
@@ -184,11 +227,14 @@ contract Swapper is ISwapper {
 
     function _uniswapV3(
         address _router,
-        address[] memory _route,
-        uint256 _amount,
-        address _recipient
+        bytes memory path,
+        uint256 amountIn,
+        address recipient
     ) internal {
-        // TODO:
+        uint256 deadline = block.timestamp;
+        uint256 amountOutMinimum = 1;
+        ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams(path, recipient, deadline, amountIn, amountOutMinimum);
+        ISwapRouter(_router).exactInput{value: msg.value}(params);
     }
 
     function _balancerSwap(
@@ -221,11 +267,9 @@ contract Swapper is ISwapper {
     }
 
     function _uniswapV3AmountOut(
-        address _router,
-        address[] memory _route,
-        uint256 _amount
-    ) internal view returns (uint256) {
-        // TODO: complete
-        return _amount;
+        bytes memory path,
+        uint256 amountIn
+    ) internal returns (uint256) {
+        return IQuoter(uniswapV3quoter).quoteExactInput(path, amountIn);
     }
 }
