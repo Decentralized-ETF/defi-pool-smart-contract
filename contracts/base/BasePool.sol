@@ -36,6 +36,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     function initialize(PoolDetails calldata _poolDetails) external override onlyFactory {
         require(_poolDetails.assets.length == _poolDetails.weights.length, 'INVALID_ALLOCATIONS');
         poolDetails = _poolDetails;
+        weightsSum = _weightsSum(_poolDetails.weights);
     }
 
     function link(address _poolStorage) external override onlyFactory {

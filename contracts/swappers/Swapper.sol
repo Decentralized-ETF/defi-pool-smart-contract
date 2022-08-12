@@ -132,10 +132,11 @@ contract Swapper is ISwapper {
     ) internal view returns (address[] memory route) {
         // TODO: complete
         address factory = IUniswapV2Router02(router).factory();
-
-        if (IUniswapV2Factory(factory).getPair(tokenIn, tokenIn) != address(0)) {
+        if (IUniswapV2Factory(factory).getPair(tokenIn, tokenOut) != address(0)) {
+            address[] memory route = new address[](2);
             route[0] = tokenIn;
             route[1] = tokenOut;
+            return route;
         } else {
             address[] memory tokens = routeTokens; // gas saving
             address middleToken;
@@ -146,9 +147,11 @@ contract Swapper is ISwapper {
                 }
             }
             require(middleToken != address(0), "CANT_FIND_ROUTE");
+            address[] memory route = new address[](3);
             route[0] = tokenIn;
             route[1] = middleToken;
             route[2] = tokenOut;
+            return route;
         }
     }
 
