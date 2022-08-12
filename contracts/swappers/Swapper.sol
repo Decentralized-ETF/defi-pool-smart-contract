@@ -118,7 +118,7 @@ contract Swapper is ISwapper {
         address tokenIn,
         address tokenOut
     ) internal pure returns (address[] memory) {
-        // TODO: complete
+        // future work
         address[] memory route;
         route[0] = tokenIn;
         route[1] = tokenOut;
@@ -130,7 +130,6 @@ contract Swapper is ISwapper {
         address tokenIn,
         address tokenOut
     ) internal view returns (address[] memory) {
-        // TODO: complete
         address factory = IUniswapV2Router02(router).factory();
         if (IUniswapV2Factory(factory).getPair(tokenIn, tokenOut) != address(0)) {
             address[] memory route = new address[](2);
@@ -199,7 +198,7 @@ contract Swapper is ISwapper {
         uint256 _amount,
         address _recipient
     ) internal {
-        // TODO: complete balancer swaps in future releases
+        // future work
     }
 
     function _balancerAmountOut(
@@ -208,7 +207,7 @@ contract Swapper is ISwapper {
         address _tokenOut,
         uint256 _amount
     ) internal view returns (uint256) {
-        // TODO: complete
+        // future work
         return _amount;
     }
 
