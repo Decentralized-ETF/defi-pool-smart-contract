@@ -64,7 +64,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         }
     }
 
-    function totalValue() public override view returns (uint256 _totalValue) {
+    function totalValue() public view override returns (uint256 _totalValue) {
         address[] memory poolAssets = poolDetails.assets; // gas savings
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {
@@ -88,9 +88,9 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
             _totalValue += valueConverted;
             _values[i] = valueConverted;
         }
-    } 
+    }
 
-    function entryAsset() public override view returns (address) {
+    function entryAsset() public view override returns (address) {
         return PoolStorage.entryAsset();
     }
 
@@ -102,12 +102,20 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         _unpause();
     }
 
+    /**
+     * @param _weight - can be zero. in this case asset is excluded from portfolio for some time
+     */
     function setWeight(address _asset, uint24 _weight) external override onlyFactory {
-        // TODO: find index of asset in assets and updated weights[i] = _weight
-    }
-
-    function poolSize() external view override returns (uint256) {
-        return poolDetails.assets.length;
+        address[] memory assets = poolDetails.assets; // gas savings
+        bool updated;
+        for (uint256 i; i < assets.length; ++i) {
+            if (assets[i] == _asset) {
+                poolDetails.weights[i] = _weight;
+                updated = true;
+                break;
+            }
+        }
+        require(updated == true, "UNSUPPORTED_ASSET");
     }
 
     /**
@@ -117,6 +125,10 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         require(_weights.length == poolDetails.assets.length, 'WRONG_LENGTH');
         poolDetails.weights = _weights;
         weightsSum = _weightsSum(_weights);
+    }
+
+    function poolSize() external view override returns (uint256) {
+        return poolDetails.assets.length;
     }
 
     function details() external view override returns (PoolDetails memory) {
@@ -154,7 +166,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         return _asset == address(0) ? address(this).balance : IERC20(_asset).balanceOf(address(this));
     }
 
-    function _weightsSum(uint24[] memory weights) internal view returns(uint24 sum) {
+    function _weightsSum(uint24[] memory weights) internal view returns (uint24 sum) {
         for (uint256 i; i < weights.length; ++i) {
             sum += weights[i];
         }
