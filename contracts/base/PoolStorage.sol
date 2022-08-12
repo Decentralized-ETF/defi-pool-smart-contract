@@ -76,7 +76,13 @@ contract PoolStorage is ERC20 {
 
     function sharePrice() public view returns (uint256) {
         uint256 totalValue = Pool.totalValue();
-        return totalValue / totalSupply();
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0) {
+            return 1; // initial price
+        } else {
+            return totalValue / _totalSupply;
+        }
+        
     }
 
     function calculateShares(uint256 _entryAmount) public view returns (uint256) {

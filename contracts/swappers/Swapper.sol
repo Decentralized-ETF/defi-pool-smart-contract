@@ -129,7 +129,7 @@ contract Swapper is ISwapper {
         address router,
         address tokenIn,
         address tokenOut
-    ) internal view returns (address[] memory route) {
+    ) internal view returns (address[] memory) {
         // TODO: complete
         address factory = IUniswapV2Router02(router).factory();
         if (IUniswapV2Factory(factory).getPair(tokenIn, tokenOut) != address(0)) {
