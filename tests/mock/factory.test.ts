@@ -14,7 +14,7 @@ const { expect } = chai;
 
 describe('Factory Contract', () => {
     let deployer: Deployer
-    let governanceAcc: SignerWithAddress, governance: string, dmitryAcc: SignerWithAddress, dmitry: string
+    let governanceAcc: SignerWithAddress, governance: string
     let contracts: any;
     let poolAddress: string;
     let poolStorageAddress: string;
@@ -27,9 +27,7 @@ describe('Factory Contract', () => {
     before(async function () {
         this.signers = await ethers.getSigners()
         governanceAcc = this.signers[0]
-        dmitryAcc = this.signers[0]
         governance = governanceAcc.address
-        dmitry = dmitryAcc.address
 
         deployer = new Deployer()
         contracts = await deployer.deployTestContracts(2)

@@ -62,6 +62,7 @@ contract PoolStorage is ERC20 {
 
     function recordWithdrawal(address _investor, uint256 _shares, uint16 _successFee) external onlyPool returns (uint256 withdrawAmount, uint256 successFeeSize) {
         withdrawAmount = calculateEntryAmount(_shares);
+
         require(withdrawAmount > 0, "ZERO_WITHDRAW_AMOUNT");
         _burn(_investor, _shares);
         successFeeSize =  (withdrawAmount  * _successFee) / KedrConstants._FEE_DENOMINATOR;
@@ -75,21 +76,19 @@ contract PoolStorage is ERC20 {
     }
 
     function sharePrice() public returns (uint256) {
-        uint256 totalValue = Pool.totalValue();
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) {
-            return 1; // initial price
-        } else {
-            return totalValue / _totalSupply; // check: maybe need to add multiplier here, not sure
+            return 10e18; // initial price
         }
-        
+        uint256 totalValue = Pool.totalValue();
+        return totalValue * 10e18 / _totalSupply; // check: maybe need to add multiplier here, not sure
     }
 
     function calculateShares(uint256 _entryAmount) public returns (uint256) {
-        return _entryAmount / sharePrice();
+        return _entryAmount * 10e18 / sharePrice();
     }
 
     function calculateEntryAmount(uint256 _shares) public returns (uint256) {
-        return _shares * sharePrice();
+        return _shares * sharePrice() / 10e18;
     }
 }

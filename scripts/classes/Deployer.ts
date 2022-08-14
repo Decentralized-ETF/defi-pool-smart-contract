@@ -1,6 +1,6 @@
 import hre, { ethers } from 'hardhat'
 import {poolParams, ROUTERS, TEST_ROUTERS, TOKENS} from "../config";
-import {PoolDetails, Routers, TestRouter} from "../interfaces";
+import {PoolDetails, Routers, TestRouter, Token} from "../interfaces";
 import {Factory, MockToken, MockWeth} from "../../typechain";
 
 
@@ -31,8 +31,8 @@ export class Deployer {
 
     const routersConfig = _routers.filter(router => router.network === "hardhat" && router.type === routerType.toString())
     const {router, routerFactory} = await this.deployMockRouter(routersConfig[0])
-
-    const Swapper = await this.deploy("Swapper", [[router.address], [routerType], router.address]);
+    //Todo change _uniswapV3quoter
+    const Swapper = await this.deploy("Swapper", [[router.address], [routerType], router.address, governance.address]);
     const Factory = await this.deploy("Factory", [governance.address, Swapper.address]);
     return { swapper: Swapper, factory: Factory, router, routerFactory }
   }
@@ -70,7 +70,7 @@ export class Deployer {
     })
   }
 
-  async createPool(Factory: Factory, swapper: string, _tokensConfig = TOKENS, _test: boolean = false) {
+  async createPool(Factory: Factory, swapper: string, _tokensConfig = TOKENS, _entryAsset: string = "", _test: boolean = false) {
     const tokens = _tokensConfig.filter(val => val.network == hre.network.name).map(token => token.address);
     const poolDetails: PoolDetails = {
       swapper,
@@ -80,14 +80,16 @@ export class Deployer {
       weights: new Array(tokens.length).fill((100 / tokens.length).toFixed(0).toString()),
       minInvestment: poolParams.minInvestment
     }
-    const entryAsset = tokens[0]
+    if(_entryAsset == ""){
+      _entryAsset = tokens[0]
+    }
     if(_test) {
-      const poolInfo = await Factory.callStatic.create(poolDetails, entryAsset);
-      await Factory.create(poolDetails, entryAsset);
+      const poolInfo = await Factory.callStatic.create(poolDetails, _entryAsset);
+      await Factory.create(poolDetails, _entryAsset);
       return poolInfo
 
     }
-    return await Factory.create(poolDetails, entryAsset);
+    return await Factory.create(poolDetails, _entryAsset);
   }
 
   async sleep(seconds: number) {

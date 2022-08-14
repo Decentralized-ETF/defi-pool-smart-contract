@@ -14,23 +14,21 @@ const { expect } = chai;
 
 describe('PoolStorage Contract', () => {
     let deployer: Deployer
-    let governanceAcc: SignerWithAddress, governance: string, dmitryAcc: SignerWithAddress, dmitry: string
+    let governanceAcc: SignerWithAddress, governance: string, investorAcc: SignerWithAddress, investor: string
     let contracts: any;
     let poolAddress: string;
     let poolStorage: PoolStorage;
     let poolStorageAddress: string;
     let tokens: Token[];
-    let tokens2: Token[];
     let poolInfo: string[];
-    let pool: Pool;
     let tokenA: MockToken, tokenB: MockToken, tokenC: MockToken
 
     before(async function () {
         this.signers = await ethers.getSigners()
         governanceAcc = this.signers[0]
-        dmitryAcc = this.signers[0]
+        investorAcc = this.signers[0]
         governance = governanceAcc.address
-        dmitry = dmitryAcc.address
+        investor = investorAcc.address
 
         deployer = new Deployer()
         contracts = await deployer.deployTestContracts(2)
@@ -73,12 +71,12 @@ describe('PoolStorage Contract', () => {
         })
 
         it('setFeeReceiver CALLER_IS_NOT_FACTORY', async function () {
-            await expect(poolStorage.setFeeReceiver(dmitry)).to.be.revertedWith("CALLER_IS_NOT_FACTORY")
+            await expect(poolStorage.setFeeReceiver(investor)).to.be.revertedWith("CALLER_IS_NOT_FACTORY")
         })
 
         it('setFeeReceiver', async function () {
-            await contracts.factory.setFeeReceiver(poolStorageAddress, dmitry)
-            expect(await poolStorage.feeReceiver()).to.equal(dmitry)
+            await contracts.factory.setFeeReceiver(poolStorageAddress, investor)
+            expect(await poolStorage.feeReceiver()).to.equal(investor)
         })
 
     })

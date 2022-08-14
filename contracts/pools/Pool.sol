@@ -3,7 +3,6 @@ pragma solidity >=0.7.6;
 pragma experimental ABIEncoderV2;
 
 import '../base/BasePool.sol';
-import '../libraries/KedrConstants.sol';
 
 contract Pool is BasePool {
     constructor(uint64 _poolId, address _swapper) BasePool(_poolId, _swapper) {}
@@ -20,7 +19,7 @@ contract Pool is BasePool {
         uint256 invested = amount - entryFee;
         PoolStorage.recordInvestment(investor, invested, entryFee); // here minting of kTokens happens
 
-        _uniTransferFrom(entryAsset, msg.sender, address(this), amount);
+        _uniTransferFrom(entryAsset, msg.sender, address(this), amount); // Transfer must be after recordInvestment
 
         // Transfer fee from user to feeReceiver
         address feeReceiver = PoolStorage.feeReceiver();
