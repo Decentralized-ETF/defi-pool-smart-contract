@@ -47,12 +47,17 @@ contract Swapper is ISwapper {
         address _recipient
     ) external override returns (uint256) {
         require(_amount > 0, 'ZERO_AMOUNT');
-        TransferHelper.safeTransferFrom(_tokenIn, msg.sender, address(this), _amount);
         (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
-        // TODO: check for native here if needed
-        TransferHelper.safeApprove(_tokenIn, router, _amount);
 
-        uint256 balanceBefore = IERC20(_tokenOut).balanceOf(_recipient);
+        uint256 balanceBefore;
+        if (!isNative(_tokenIn)) {
+            TransferHelper.safeTransferFrom(_tokenIn, msg.sender, address(this), _amount);
+            TransferHelper.safeApprove(_tokenIn, router, _amount);
+            balanceBefore = IERC20(_tokenOut).balanceOf(_recipient);
+        } else {
+            balanceBefore = address(_recipient).balance;
+        }
+
         if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
             _balancerSwap(router, _tokenIn, _tokenOut, _amount, _recipient);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
@@ -78,7 +83,10 @@ contract Swapper is ISwapper {
             // todo: future work
             return _amount;
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
-            uint256[] memory amounts = IUniswapV2Router02(router).getAmountsOut(_amount, getAddressRoute(router, routerType, _tokenIn, _tokenOut));
+            uint256[] memory amounts = IUniswapV2Router02(router).getAmountsOut(
+                _amount,
+                getAddressRoute(router, routerType, _tokenIn, _tokenOut)
+            );
             return amounts[amounts.length - 1]; // last item
         } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
             return IQuoter(uniswapV3quoter).quoteExactInput(getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amount);
@@ -100,7 +108,10 @@ contract Swapper is ISwapper {
             // todo: future work
             return _amountOut;
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
-            uint256[] memory amounts = IUniswapV2Router02(router).getAmountsIn(_amountOut, getAddressRoute(router, routerType, _tokenIn, _tokenOut));
+            uint256[] memory amounts = IUniswapV2Router02(router).getAmountsIn(
+                _amountOut,
+                getAddressRoute(router, routerType, _tokenIn, _tokenOut)
+            );
             return amounts[0]; // first item
         } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
             return IQuoter(uniswapV3quoter).quoteExactOutput(getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amountOut);
@@ -161,6 +172,11 @@ contract Swapper is ISwapper {
         address tokenOut
     ) internal view returns (address[] memory) {
         address factory = IUniswapV2Router02(router).factory();
+        address WETH = IUniswapV2Router02(router).WETH();
+
+        if (isNative(tokenIn)) tokenIn = WETH;
+        if (isNative(tokenOut)) tokenOut = WETH;
+
         if (IUniswapV2Factory(factory).getPair(tokenIn, tokenOut) != address(0)) {
             address[] memory route = new address[](2);
             route[0] = tokenIn;
@@ -193,6 +209,11 @@ contract Swapper is ISwapper {
         address tokenOut
     ) internal view returns (bytes memory route) {
         address factory = IPeripheryImmutableState(router).factory();
+        address WETH = IPeripheryImmutableState(router).WETH9();
+
+        if (isNative(tokenIn)) tokenIn = WETH;
+        if (isNative(tokenOut)) tokenOut = WETH;
+
         (route, ) = _checkEveryFeeForV3Pool(factory, tokenIn, tokenOut);
 
         if (route.length == 0) {
@@ -269,5 +290,9 @@ contract Swapper is ISwapper {
         address _recipient
     ) internal {
         // future work
+    }
+
+    function isNative(address token) internal pure returns (bool) {
+        return token == address(0);
     }
 }

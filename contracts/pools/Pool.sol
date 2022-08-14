@@ -30,7 +30,12 @@ contract Pool is BasePool {
         address[] memory assets = poolDetails.assets;
         uint24[] memory weights = poolDetails.weights;
 
-        TransferHelper.safeApprove(entryAsset, address(Swapper), invested);
+        if (!isNative) {
+            TransferHelper.safeApprove(entryAsset, address(Swapper), invested);
+        } else {
+            TransferHelper.safeTransferETH(address(Swapper), invested);
+        }
+
         for (uint8 i; i < assets.length; ++i) {
             if (assets[i] != entryAsset) {
                 uint256 entryAmount = (invested * weights[i]) / weightsSum;
