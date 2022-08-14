@@ -11,4 +11,6 @@ library KedrConstants {
     uint8 internal constant _ROUTER_TYPE_BALANCER = 1; 
     uint8 internal constant _ROUTER_TYPE_V2 = 2;
     uint8 internal constant _ROUTER_TYPE_V3 = 3;
+
+    uint8 internal constant _INACCURACY = 5; // max permissible innacuracy in the calculation of swaps
 }

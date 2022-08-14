@@ -59,15 +59,18 @@ contract Pool is BasePool {
         uint256 totalReceived;
 
         for (uint256 i; i < assets.length; ++i) {
+            uint256 amountOut = (totalWithdraw * weights[i]) / weightsSum;
             if (assets[i] != entryAsset) {
-                uint256 amountOut = (totalWithdraw * weights[i]) / weightsSum;
                 totalReceived += _sellToExactAmount(assets[i], entryAsset, amountOut);
+            } else {
+                totalReceived += amountOut;
             }
         }
 
-        require(totalReceived == totalWithdraw, 'INCORRECT_OPERATION');
-        address feeReceiver = PoolStorage.feeReceiver();
+        _checkInaccuracy(totalWithdraw, totalReceived);
+        withdrawAmount = totalReceived - successFee; // adjust withdraw amount by possible INACCURACY
 
+        address feeReceiver = PoolStorage.feeReceiver();
         if (isNative) {
             TransferHelper.safeTransferETH(msg.sender, withdrawAmount);
             TransferHelper.safeTransferETH(feeReceiver, successFee);
@@ -104,7 +107,7 @@ contract Pool is BasePool {
         address _tokenOut,
         uint256 _amountOut
     ) internal returns (uint256 received) {
-        uint256 amountIn = Swapper.getReturn(_tokenOut, _tokenIn, _amountOut);
+        uint256 amountIn = Swapper.getAmountIn(_tokenIn, _tokenOut, _amountOut);
         require(_assetBalance(_tokenIn) >= amountIn, 'INSUFFIENT_FUNDS');
         TransferHelper.safeApprove(_tokenIn, address(Swapper), amountIn);
         received = Swapper.swap(_tokenIn, _tokenOut, amountIn, address(this));
@@ -157,6 +160,14 @@ contract Pool is BasePool {
             TransferHelper.safeTransferETH(to, amount);
         } else {
             TransferHelper.safeTransfer(token, to, amount);
+        }
+    }
+
+    function _checkInaccuracy(uint256 expectedValue, uint256 realValue) internal view {
+        if (expectedValue > realValue) {
+            require(expectedValue - realValue <= KedrConstants._INACCURACY, "INCORRECT_OPERATION");
+        } else {
+            require(realValue - expectedValue <= KedrConstants._INACCURACY, "INCORRECT_OPERATION");
         }
     }
 

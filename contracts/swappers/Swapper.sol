@@ -56,16 +56,16 @@ contract Swapper is ISwapper {
         if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
             _balancerSwap(router, _tokenIn, _tokenOut, _amount, _recipient);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
-            _uniswapV2(router, getAddressRoute(router, routerType, _tokenIn, _tokenOut), _amount, _recipient);
+            _v2swap(router, getAddressRoute(router, routerType, _tokenIn, _tokenOut), _amount, _recipient);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
-            _uniswapV3(router, getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amount, _recipient);
+            _v3swap(router, getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amount, _recipient);
         } else {
             revert('UNSUPPORTED_ROUTER_TYPE');
         }
         return IERC20(_tokenOut).balanceOf(_recipient) - balanceBefore;
     }
 
-    function getReturn(
+    function getAmountOut(
         address _tokenIn,
         address _tokenOut,
         uint256 _amount
@@ -75,11 +75,35 @@ contract Swapper is ISwapper {
         (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
 
         if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
-            return _balancerAmountOut(router, _tokenIn, _tokenOut, _amount);
+            // todo: future work
+            return _amount;
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
-            return _uniswapV2AmountOut(router, getAddressRoute(router, routerType, _tokenIn, _tokenOut), _amount);
+            uint256[] memory amounts = IUniswapV2Router02(router).getAmountsOut(_amount, getAddressRoute(router, routerType, _tokenIn, _tokenOut));
+            return amounts[amounts.length - 1]; // last item
         } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
-            return _uniswapV3AmountOut(getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amount);
+            return IQuoter(uniswapV3quoter).quoteExactInput(getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amount);
+        } else {
+            return 0;
+        }
+    }
+
+    function getAmountIn(
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amountOut
+    ) public override returns (uint256) {
+        if (_tokenIn == _tokenOut) return _amountOut;
+
+        (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
+
+        if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
+            // todo: future work
+            return _amountOut;
+        } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
+            uint256[] memory amounts = IUniswapV2Router02(router).getAmountsIn(_amountOut, getAddressRoute(router, routerType, _tokenIn, _tokenOut));
+            return amounts[0]; // first item
+        } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
+            return IQuoter(uniswapV3quoter).quoteExactOutput(getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amountOut);
         } else {
             return 0;
         }
@@ -124,7 +148,7 @@ contract Swapper is ISwapper {
         address tokenIn,
         address tokenOut
     ) internal pure returns (address[] memory) {
-        // future work
+        // todo: future work
         address[] memory route;
         route[0] = tokenIn;
         route[1] = tokenOut;
@@ -209,7 +233,7 @@ contract Swapper is ISwapper {
         }
     }
 
-    function _uniswapV2(
+    function _v2swap(
         address _router,
         address[] memory route,
         uint256 _amount,
@@ -225,7 +249,7 @@ contract Swapper is ISwapper {
         return amounts[amounts.length - 1];
     }
 
-    function _uniswapV3(
+    function _v3swap(
         address _router,
         bytes memory path,
         uint256 amountIn,
@@ -245,31 +269,5 @@ contract Swapper is ISwapper {
         address _recipient
     ) internal {
         // future work
-    }
-
-    function _balancerAmountOut(
-        address _router,
-        address _tokenIn,
-        address _tokenOut,
-        uint256 _amount
-    ) internal view returns (uint256) {
-        // future work
-        return _amount;
-    }
-
-    function _uniswapV2AmountOut(
-        address _router,
-        address[] memory _path,
-        uint256 _amount
-    ) internal view returns (uint256) {
-        uint256[] memory amounts = IUniswapV2Router02(_router).getAmountsOut(_amount, _path);
-        return amounts[amounts.length - 1];
-    }
-
-    function _uniswapV3AmountOut(
-        bytes memory path,
-        uint256 amountIn
-    ) internal returns (uint256) {
-        return IQuoter(uniswapV3quoter).quoteExactInput(path, amountIn);
     }
 }

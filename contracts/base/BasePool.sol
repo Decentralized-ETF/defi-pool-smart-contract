@@ -69,7 +69,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {
             address asset = poolAssets[i];
-            uint256 valueConverted = Swapper.getReturn(asset, _entryAsset, _assetBalance(asset));
+            uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, _assetBalance(asset));
             require(valueConverted > 0, 'ORACLE_ERROR');
             _totalValue += valueConverted;
         }
@@ -83,7 +83,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {
             address asset = poolAssets[i];
-            uint256 valueConverted = Swapper.getReturn(asset, _entryAsset, _assetBalance(asset));
+            uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, _assetBalance(asset));
             require(valueConverted > 0, 'ORACLE_ERROR');
             _totalValue += valueConverted;
             _values[i] = valueConverted;
