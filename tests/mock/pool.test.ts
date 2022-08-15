@@ -92,24 +92,24 @@ describe('Pool Contract', () => {
 
         })
 
-        // it('Check additional pool creation via factory', async function () {
-        //     await deployer.createPool(contracts.factory, contracts.swapper.address, tokens, tokenA.address, true);
-        //     expect(await contracts.factory.poolsCount()).to.equal(2)
-        // })
-        //
-        // it('Check pool details', async function () {
-        //     const poolDetails = await pool.poolDetails()
-        //     expect(poolDetails[0].toLowerCase()).to.equal(contracts.swapper.address.toLowerCase())
-        //     expect(poolDetails[1].toString()).to.equal(poolParams.minInvestment)
-        //     expect(poolDetails[2]).to.equal(parseInt(poolParams.entryFee))
-        //     expect(poolDetails[3]).to.equal(parseInt(poolParams.successFee))
-        //     expect(await pool.poolStorage()).to.equal(poolStorageAddress)
-        // })
-        //
-        // it('Check default assets weights', async function () {
-        //     const defaultWeights = parseInt((100/tokens.length).toFixed(0)) * tokens.length
-        //     expect(defaultWeights).to.equal(await pool.weightsSum())
-        // })
+        it('Check additional pool creation via factory', async function () {
+            await deployer.createPool(contracts.factory, contracts.swapper.address, tokens, tokenA.address, true);
+            expect(await contracts.factory.poolsCount()).to.equal(2)
+        })
+
+        it('Check pool details', async function () {
+            const poolDetails = await pool.poolDetails()
+            expect(poolDetails[0].toLowerCase()).to.equal(contracts.swapper.address.toLowerCase())
+            expect(poolDetails[1].toString()).to.equal(poolParams.minInvestment)
+            expect(poolDetails[2]).to.equal(parseInt(poolParams.entryFee))
+            expect(poolDetails[3]).to.equal(parseInt(poolParams.successFee))
+            expect(await pool.poolStorage()).to.equal(poolStorageAddress)
+        })
+
+        it('Check default assets weights', async function () {
+            const defaultWeights = parseInt((100/tokens.length).toFixed(0)) * tokens.length
+            expect(defaultWeights).to.equal(await pool.weightsSum())
+        })
 
         describe('Invest & Withdraw', async function () {
             let balanceABefore: BigNumber, balanceABeforeGov: BigNumber, balanceKBefore: BigNumber;
@@ -163,23 +163,22 @@ describe('Pool Contract', () => {
                 const poolDetails = await pool.poolDetails()
 
                 const totalWithdrawnEntryAssetBefore = await poolStorage.totalWithdrawnEntryAsset()
-                const totalSuccessFeeCollectedBefore = await poolStorage.totalEntryFeeCollected()
+                const totalSuccessFeeCollectedBefore = await poolStorage.totalSuccessFeeCollected()
                 const entryTokenBalanceBefore = await tokenA.balanceOf(investor)
                 const kTokenBalance = await poolStorage.balanceOf(investor)
+                const calculatedWithDrawAmount = await poolStorage.callStatic.calculateEntryAmount(kTokenBalance)
+                const calculatedSuccessFee = calculatedWithDrawAmount.mul(poolDetails.successFee).div(denominator)
 
                 await pool.connect(investorAcc).withdraw(kTokenBalance)
 
-                const calculatedWithDrawAmount = await poolStorage.callStatic.calculateEntryAmount(kTokenBalance)
-                const calculatedSuccessFee = calculatedWithDrawAmount.mul(poolDetails.successFee).div(denominator)
                 const totalWithdrawnEntryAssetAfter = await poolStorage.totalWithdrawnEntryAsset()
-                const totalSuccessFeeCollectedAfter = await poolStorage.totalEntryFeeCollected()
+                const totalSuccessFeeCollectedAfter = await poolStorage.totalSuccessFeeCollected()
                 const entryTokenBalanceAfter = await tokenA.balanceOf(investor)
 
                 expect(totalWithdrawnEntryAssetAfter).to.equal(totalWithdrawnEntryAssetBefore.add(calculatedWithDrawAmount))
                 expect(totalSuccessFeeCollectedAfter).to.equal(totalSuccessFeeCollectedBefore.add(calculatedSuccessFee))
                 expect(await poolStorage.balanceOf(investor)).to.equal(0)
-                // expect(entryTokenBalanceAfter).to.equal(entryTokenBalanceBefore.add())
-                //toDo complete check balances after withdraw
+                expect(entryTokenBalanceAfter).to.equal(entryTokenBalanceBefore.add(calculatedWithDrawAmount))
             })
         })
 
@@ -187,27 +186,44 @@ describe('Pool Contract', () => {
             let entryBalanceBefore: BigNumber, balanceKBefore: BigNumber;
             let entryBalanceAfterInvest: BigNumber, balanceKAfterInvest: BigNumber;
             let entryBalanceAfterWithdraw: BigNumber, balanceKAfterWithdraw: BigNumber;
+            // @ts-ignore
+            let sharePriceBeforeInvest: BigNumber, sharePriceAfterInvest: BigNumber;
+            let sharePriceBeforeMint: BigNumber, sharePriceAfterMint: BigNumber;
+            let sharePriceAfterWithdraw: BigNumber;
 
             before(async function () {
                 entryBalanceBefore = await tokenA.balanceOf(investor)
                 balanceKBefore = await poolStorage.balanceOf(investor)
+                sharePriceBeforeInvest = await poolStorage.callStatic.sharePrice()
 
                 await pool.connect(investorAcc).invest(investor, entryAmountToInvest)
 
+                sharePriceAfterInvest = await poolStorage.callStatic.sharePrice()
                 entryBalanceAfterInvest = await tokenA.balanceOf(investor)
                 balanceKAfterInvest = await poolStorage.balanceOf(investor)
             })
 
             it('Invest and earn', async function () {
+
+                sharePriceBeforeMint = await poolStorage.callStatic.sharePrice()
+
                 // Mint assets to imitate earning
                 await tokenB.mint(pool.address, ethers.utils.parseEther("100"))
                 await tokenC.mint(pool.address, ethers.utils.parseEther("100"))
+                sharePriceAfterMint = await poolStorage.callStatic.sharePrice()
 
                 const kTokenBalance = await poolStorage.balanceOf(investor)
                 await pool.connect(investorAcc).withdraw(kTokenBalance)
 
+                sharePriceAfterWithdraw = await poolStorage.callStatic.sharePrice()
                 entryBalanceAfterWithdraw = await tokenA.balanceOf(investor)
                 balanceKAfterWithdraw = await poolStorage.balanceOf(investor)
+
+                console.log(" sharePriceBeforeInvest: ", sharePriceBeforeInvest.toString())
+                console.log("  sharePriceAfterInvest: ", sharePriceAfterInvest.toString())
+                console.log("   sharePriceBeforeMint: ", sharePriceBeforeMint.toString())
+                console.log("    sharePriceAfterMint: ", sharePriceAfterMint.toString())
+                console.log("sharePriceAfterWithdraw: ", sharePriceAfterWithdraw.toString())
 
                 expect(entryBalanceAfterWithdraw).to.gt(entryBalanceBefore)
                 expect(balanceKAfterWithdraw).to.equal(0)
@@ -232,9 +248,7 @@ describe('Pool Contract', () => {
                 poolStorageAddress = poolInfo[1]
                 pool = await ethers.getContractAt("Pool", poolAddress);
                 poolStorage = await ethers.getContractAt("PoolStorage", poolStorageAddress);
-                expect(await contracts.factory.poolsCount()).to.equal(2)
-
-                console.log(await tokenA.balanceOf(investor))
+                expect(await contracts.factory.poolsCount()).to.equal(3)
 
                 balanceABefore = await tokenA.balanceOf(investor)
                 balanceABeforeGov = await tokenA.balanceOf(governance)
@@ -286,23 +300,22 @@ describe('Pool Contract', () => {
                 const poolDetails = await pool.poolDetails()
 
                 const totalWithdrawnEntryAssetBefore = await poolStorage.totalWithdrawnEntryAsset()
-                const totalSuccessFeeCollectedBefore = await poolStorage.totalEntryFeeCollected()
+                const totalSuccessFeeCollectedBefore = await poolStorage.totalSuccessFeeCollected()
                 const entryTokenBalanceBefore = await tokenA.balanceOf(investor)
                 const kTokenBalance = await poolStorage.balanceOf(investor)
+                const calculatedWithDrawAmount = await poolStorage.callStatic.calculateEntryAmount(kTokenBalance)
+                const calculatedSuccessFee = calculatedWithDrawAmount.mul(poolDetails.successFee).div(denominator)
 
                 await pool.connect(investorAcc).withdraw(kTokenBalance)
 
-                const calculatedWithDrawAmount = await poolStorage.callStatic.calculateEntryAmount(kTokenBalance)
-                const calculatedSuccessFee = calculatedWithDrawAmount.mul(poolDetails.successFee).div(denominator)
                 const totalWithdrawnEntryAssetAfter = await poolStorage.totalWithdrawnEntryAsset()
-                const totalSuccessFeeCollectedAfter = await poolStorage.totalEntryFeeCollected()
+                const totalSuccessFeeCollectedAfter = await poolStorage.totalSuccessFeeCollected()
                 const entryTokenBalanceAfter = await tokenA.balanceOf(investor)
 
                 expect(totalWithdrawnEntryAssetAfter).to.equal(totalWithdrawnEntryAssetBefore.add(calculatedWithDrawAmount))
                 expect(totalSuccessFeeCollectedAfter).to.equal(totalSuccessFeeCollectedBefore.add(calculatedSuccessFee))
                 expect(await poolStorage.balanceOf(investor)).to.equal(0)
-                // expect(entryTokenBalanceAfter).to.equal(entryTokenBalanceBefore.add())
-                //toDo complete check balances after withdraw
+                expect(entryTokenBalanceAfter).to.equal(entryTokenBalanceBefore.add(calculatedWithDrawAmount))
             })
         })
     })
