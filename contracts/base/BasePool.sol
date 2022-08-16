@@ -9,6 +9,7 @@ import '../interfaces/IPool.sol';
 import '../interfaces/IPoolStorage.sol';
 import '../libraries/KedrConstants.sol';
 import '../interfaces/ISwapper.sol';
+import "hardhat/console.sol";
 
 abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     uint64 public override poolId;
@@ -25,7 +26,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         Swapper = ISwapper(_swapper);
     }
 
-    event Invested(address indexed user, address entryAsset, address feeReceiver, uint256 amount, uint256 entryFee);
+    
 
     modifier onlyFactory() {
         require(msg.sender == factory, 'CALLER_IS_NOT_FACTORY');
@@ -69,10 +70,14 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {
             address asset = poolAssets[i];
-            uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, _assetBalance(asset));
-            require(valueConverted > 0, 'ORACLE_ERROR');
-            _totalValue += valueConverted;
+            uint256 assetBalance = _assetBalance(asset);
+            if (assetBalance > 0) {
+                uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, assetBalance);
+                require(valueConverted > 0, 'ORACLE_ERROR');
+                _totalValue += valueConverted;
+            }
         }
+        _totalValue += _assetBalance(_entryAsset);
     }
 
     /**
@@ -83,10 +88,13 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {
             address asset = poolAssets[i];
-            uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, _assetBalance(asset));
-            require(valueConverted > 0, 'ORACLE_ERROR');
-            _totalValue += valueConverted;
-            _values[i] = valueConverted;
+            uint256 assetBalance = _assetBalance(asset);
+            if (assetBalance > 0) {
+                uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, assetBalance);
+                require(valueConverted > 0, 'ORACLE_ERROR');
+                _totalValue += valueConverted;
+                _values[i] = valueConverted;
+            }
         }
     }
 
@@ -115,7 +123,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
                 break;
             }
         }
-        require(updated == true, "UNSUPPORTED_ASSET");
+        require(updated == true, 'UNSUPPORTED_ASSET');
     }
 
     /**
@@ -164,6 +172,10 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
 
     function _assetBalance(address _asset) internal view returns (uint256) {
         return _asset == address(0) ? address(this).balance : IERC20(_asset).balanceOf(address(this));
+    }
+
+    function _calcualteSuccessFee(uint256 _amount) internal view returns(uint256) {
+        return (_amount  * poolDetails.successFee) / KedrConstants._FEE_DENOMINATOR;
     }
 
     function _weightsSum(uint24[] memory weights) internal view returns (uint24 sum) {

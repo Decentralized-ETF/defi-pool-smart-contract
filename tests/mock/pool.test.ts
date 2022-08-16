@@ -112,13 +112,14 @@ describe('Pool Contract', () => {
         })
 
         describe('Invest & Withdraw', async function () {
-            let balanceABefore: BigNumber, balanceABeforeGov: BigNumber, balanceKBefore: BigNumber;
-            let balanceAAfter: BigNumber, balanceAAfterGov: BigNumber, balanceKAfter: BigNumber;
+            let balanceABefore: BigNumber, balanceABeforeGov: BigNumber, balanceKBefore: BigNumber, poolValueAfterFirstInvest: BigNumber
+            let balanceAAfter: BigNumber, balanceAAfterGov: BigNumber, balanceKAfter: BigNumber, sharePrice: BigNumber
 
             before(async function () {
                 balanceABefore = await tokenA.balanceOf(investor)
                 balanceABeforeGov = await tokenA.balanceOf(governance)
                 balanceKBefore = await poolStorage.balanceOf(investor)
+                sharePrice = await poolStorage.callStatic.sharePrice(); // callStatic because of UniswapV3 Quoter...
 
                 await pool.connect(investorAcc).invest(investor, entryAmountToInvest)
 
@@ -130,7 +131,9 @@ describe('Pool Contract', () => {
             it('First invest.', async function () {
                 expect(balanceAAfter).to.equal(balanceABefore.sub(entryAmountToInvest))
                 expect(balanceAAfterGov).to.equal(balanceABeforeGov.add(fee))
-                expect(balanceKAfter).to.equal(balanceKBefore.add(investedAmount))
+                poolValueAfterFirstInvest = await pool.callStatic.totalValue();
+                const expectedShares = await poolStorage.calculateSharesBySpecificPrice(poolValueAfterFirstInvest, sharePrice)
+                expect(balanceKAfter).to.equal(balanceKBefore.add(expectedShares))
                 //check poolStorage
                 expect(await poolStorage.totalReceivedEntryAsset()).to.equal(investedAmount)
                 expect(await poolStorage.totalEntryFeeCollected()).to.equal(fee)
@@ -143,9 +146,12 @@ describe('Pool Contract', () => {
                 balanceABefore = await tokenA.balanceOf(investor2)
                 balanceABeforeGov = await tokenA.balanceOf(governance)
                 balanceKBefore = await poolStorage.balanceOf(investor2)
-                const calculatedKTokens = await poolStorage.callStatic.calculateShares(entryAmountToInvest.sub(fee))
+                const sharePrice2 = await poolStorage.callStatic.sharePrice(); 
 
                 await pool.connect(investor2Acc).invest(investor2, entryAmountToInvest)
+
+                const secondInvestAmount = (await pool.callStatic.totalValue()).sub(poolValueAfterFirstInvest);
+                const calculatedKTokens = await poolStorage.callStatic.calculateSharesBySpecificPrice(secondInvestAmount, sharePrice2);
                 balanceAAfter = await tokenA.balanceOf(investor2)
                 balanceAAfterGov = await tokenA.balanceOf(governance)
                 balanceKAfter = await poolStorage.balanceOf(investor2)
@@ -155,7 +161,7 @@ describe('Pool Contract', () => {
                 expect(balanceKAfter).to.equal(calculatedKTokens)
 
                 //check poolStorage
-                expect(await poolStorage.totalReceivedEntryAsset()).to.equal(investedAmount.add(totalReceivedEntryAssetBefore))
+                expect(await poolStorage.totalReceivedEntryAsset()).to.equal(entryAmountToInvest.add(totalReceivedEntryAssetBefore).sub(fee))
                 expect(await poolStorage.totalEntryFeeCollected()).to.equal(fee.add(totalEntryFeeCollectedBefore))
             })
 
@@ -209,7 +215,7 @@ describe('Pool Contract', () => {
 
                 // Mint assets to imitate earning
                 await tokenB.mint(pool.address, ethers.utils.parseEther("100"))
-                await tokenC.mint(pool.address, ethers.utils.parseEther("100"))
+                await tokenC.mint(pool.address, ethers.utils.parseEther("200"))
                 sharePriceAfterMint = await poolStorage.callStatic.sharePrice()
 
                 const kTokenBalance = await poolStorage.balanceOf(investor)
@@ -218,13 +224,9 @@ describe('Pool Contract', () => {
                 sharePriceAfterWithdraw = await poolStorage.callStatic.sharePrice()
                 entryBalanceAfterWithdraw = await tokenA.balanceOf(investor)
                 balanceKAfterWithdraw = await poolStorage.balanceOf(investor)
-
-                console.log(" sharePriceBeforeInvest: ", sharePriceBeforeInvest.toString())
-                console.log("  sharePriceAfterInvest: ", sharePriceAfterInvest.toString())
-                console.log("   sharePriceBeforeMint: ", sharePriceBeforeMint.toString())
-                console.log("    sharePriceAfterMint: ", sharePriceAfterMint.toString())
-                console.log("sharePriceAfterWithdraw: ", sharePriceAfterWithdraw.toString())
-
+                
+                expect(sharePriceAfterMint).gt(sharePriceBeforeMint)
+                expect(sharePriceAfterWithdraw).eq(sharePriceAfterMint)
                 expect(entryBalanceAfterWithdraw).to.gt(entryBalanceBefore)
                 expect(balanceKAfterWithdraw).to.equal(0)
             })

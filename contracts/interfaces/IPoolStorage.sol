@@ -13,13 +13,17 @@ interface IPoolStorage is IERC20 {
 
     function link(address pool) external;
 
+    function sharePrice() external view returns (uint256);
+
     function calculateShares(uint256 entryAmount) external returns (uint256);
+
+    function calculateSharesBySpecificPrice(uint256 entryAmount, uint256 sharePrice) external returns (uint256);
 
     function calculateEntryAmount(uint256 shares) external returns (uint256);
 
-    function recordInvestment(address investor, uint256 amount, uint256 entryFee) external;
+    function recordInvestment(address investor, uint256 amount, uint256 entryFee, uint256 shares, address feeReceiver, uint256 swapFeesLoss) external;
 
-    function recordWithdrawal(address investor, uint256 shares, uint16 successFee) external returns (uint256, uint256);
+    function recordWithdrawal(address investor, uint256 shares, uint256 successFee, uint256 withdrawAmount, uint256 swapFeesLoss) external;
 
     function totalReceivedEntryAssetAmount() external view returns (uint256);
 
@@ -30,4 +34,5 @@ interface IPoolStorage is IERC20 {
     function feeReceiver() external returns (address);
 
     function setFeeReceiver(address feeReceiver) external;
+    
 }

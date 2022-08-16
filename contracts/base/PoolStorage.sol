@@ -20,7 +20,12 @@ contract PoolStorage is ERC20 {
     uint256 public totalEntryFeeCollected = 0;
     uint256 public totalReceivedEntryAsset = 0;
     uint256 public totalWithdrawnEntryAsset = 0;
+    uint256 public totalSwapFeesLoss = 0;
+    uint256 internal constant NUMERATOR = 10e18;
     IPool internal Pool;
+
+    event Withdrawal(address indexed user, address indexed entryAsset, uint256 shares, uint256 amountReceived, uint256 successFee, uint256 swapFeesLoss);
+    event Investment(address indexed user, address indexed entryAsset, address feeReceiver, uint256 amount, uint256 entryFee, uint256 swapFeesLoss);
 
     modifier onlyFactory() {
         require(msg.sender == factory, 'CALLER_IS_NOT_FACTORY');
@@ -52,22 +57,22 @@ contract PoolStorage is ERC20 {
         Pool = IPool(_pool);
     }
  
-    function recordInvestment(address _investor, uint256 _amount, uint256 _entryFee) external onlyPool {
-        uint256 shares = calculateShares(_amount);
-        require(shares > 0, "ZERO_SHARES_AMOUNT");
-        _mint(_investor, shares);
+    function recordInvestment(address _investor, uint256 _amount, uint256 _entryFee, uint256 _shares, address _feeReceiver, uint256 _swapFeesLoss) external onlyPool {
+        require(_shares > 0, "ZERO_SHARES_AMOUNT");
+        _mint(_investor, _shares);
         totalReceivedEntryAsset += _amount;
         totalEntryFeeCollected += _entryFee;
+        totalSwapFeesLoss += _swapFeesLoss;
+        emit Investment(_investor, entryAsset, _feeReceiver, _amount, _entryFee, _swapFeesLoss);
     }
 
-    function recordWithdrawal(address _investor, uint256 _shares, uint16 _successFee) external onlyPool returns (uint256 withdrawAmount, uint256 successFeeSize) {
-        withdrawAmount = calculateEntryAmount(_shares);
-
-        require(withdrawAmount > 0, "ZERO_WITHDRAW_AMOUNT");
+    function recordWithdrawal(address _investor, uint256 _shares, uint256 _withdrawAmount, uint256 _successFee, uint256 _swapFeesLoss) external onlyPool {
+        require(_withdrawAmount > 0, "ZERO_WITHDRAW_AMOUNT");
         _burn(_investor, _shares);
-        successFeeSize =  (withdrawAmount  * _successFee) / KedrConstants._FEE_DENOMINATOR;
-        totalWithdrawnEntryAsset += withdrawAmount;
-        totalSuccessFeeCollected += successFeeSize;
+        totalWithdrawnEntryAsset += _withdrawAmount;
+        totalSuccessFeeCollected += _successFee;
+        totalSwapFeesLoss += _swapFeesLoss;
+        emit Withdrawal(_investor, entryAsset, _shares, _withdrawAmount, _successFee, _swapFeesLoss);
     }
 
     function setFeeReceiver(address _feeReceiver) external onlyFactory {
@@ -78,17 +83,22 @@ contract PoolStorage is ERC20 {
     function sharePrice() public returns (uint256) {
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) {
-            return 10e18; // initial price
+            return NUMERATOR; // initial price
         }
         uint256 totalValue = Pool.totalValue();
-        return totalValue * 10e18 / _totalSupply; // check: maybe need to add multiplier here, not sure
+        return totalValue * NUMERATOR / _totalSupply; // check: maybe need to add multiplier here, not sure
     }
 
     function calculateShares(uint256 _entryAmount) public returns (uint256) {
-        return _entryAmount * 10e18 / sharePrice();
+        return _entryAmount * NUMERATOR / sharePrice();
+    }
+
+    function calculateSharesBySpecificPrice(uint256 _entryAmount, uint256 _sharePrice) public pure returns (uint256) {
+        require(_sharePrice > 0, "ZERO_SHARE_PRICE");
+        return _entryAmount * NUMERATOR / _sharePrice;
     }
 
     function calculateEntryAmount(uint256 _shares) public returns (uint256) {
-        return _shares * sharePrice() / 10e18;
+        return _shares * sharePrice() / NUMERATOR;
     }
 }

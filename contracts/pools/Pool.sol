@@ -17,11 +17,12 @@ contract Pool is BasePool {
         require(amount >= poolDetails.minInvestment, 'TOO_SMALL_INVESTMENT');
         uint256 entryFee = (amount * poolDetails.entryFee) / KedrConstants._FEE_DENOMINATOR;
         uint256 invested = amount - entryFee;
-        PoolStorage.recordInvestment(investor, invested, entryFee); // here minting of kTokens happens
+        uint256 sharePrice = PoolStorage.sharePrice();
+        uint256 totalValueBefore = totalValue();
 
-        _uniTransferFrom(entryAsset, msg.sender, address(this), amount); // Transfer must be after recordInvestment
+        _uniTransferFrom(entryAsset, msg.sender, address(this), amount); // transfer must be after recordInvestment
 
-        // Transfer fee from user to feeReceiver
+        // transfer fee from user to feeReceiver
         address feeReceiver = PoolStorage.feeReceiver();
         if (entryFee > 0) {
             _uniTransfer(entryAsset, feeReceiver, entryFee);
@@ -46,7 +47,9 @@ contract Pool is BasePool {
             }
         }
 
-        emit Invested(msg.sender, entryAsset, feeReceiver, invested, entryFee);
+        uint256 valueAdded = totalValue() - totalValueBefore; // we need to use "valueAdded" instead "invested" to exclude swap fee losses from calculating
+        uint256 shares = PoolStorage.calculateSharesBySpecificPrice(valueAdded, sharePrice);
+        PoolStorage.recordInvestment(investor, invested, entryFee, shares, feeReceiver, invested - valueAdded); // here minting of kTokens happens
     }
 
     /**
@@ -56,24 +59,32 @@ contract Pool is BasePool {
     function withdraw(uint256 _shares) public override {
         require(_shares > 0, 'ZERO_AMOUNT');
         address entryAsset = PoolStorage.entryAsset();
+
         bool isNative = entryAsset == address(0); // by convention zero address is considered as native asset
-        (uint256 withdrawAmount, uint256 successFee) = PoolStorage.recordWithdrawal(msg.sender, _shares, poolDetails.successFee);
-        uint256 totalWithdraw = withdrawAmount + successFee;
+        uint256 withdrawAmount = PoolStorage.calculateEntryAmount(_shares);
         address[] memory assets = poolDetails.assets;
         uint24[] memory weights = poolDetails.weights;
         uint256 totalReceived;
+        uint256 totalValueBefore = totalValue();
 
         for (uint256 i; i < assets.length; ++i) {
-            uint256 amountOut = (totalWithdraw * weights[i]) / weightsSum;
+            uint256 amountOut = (withdrawAmount * weights[i]) / weightsSum;
             if (assets[i] != entryAsset) {
                 totalReceived += _sellToExactAmount(assets[i], entryAsset, amountOut);
             } else {
+                console.log(amountOut, "amountOut");
                 totalReceived += amountOut;
             }
         }
 
-        _checkInaccuracy(totalWithdraw, totalReceived);
-        withdrawAmount = totalReceived - successFee; // adjust withdraw amount by possible INACCURACY
+        _checkInaccuracy(withdrawAmount, totalReceived);
+        
+        uint256 totalValueAfter = totalValue();
+        uint256 swapFeesLoss = totalValueBefore - totalValueAfter;
+        console.log(swapFeesLoss, "swapFeesLoss");
+        withdrawAmount = totalReceived - swapFeesLoss; // adjust withdraw amount by possible INACCURACY and deduct swapFee losses
+        uint256 successFee = _calcualteSuccessFee(withdrawAmount);
+        withdrawAmount = withdrawAmount - successFee; // deduct successFee
 
         address feeReceiver = PoolStorage.feeReceiver();
         if (isNative) {
@@ -83,6 +94,7 @@ contract Pool is BasePool {
             TransferHelper.safeTransfer(entryAsset, msg.sender, withdrawAmount);
             TransferHelper.safeTransfer(entryAsset, feeReceiver, successFee);
         }
+        PoolStorage.recordWithdrawal(msg.sender, _shares, successFee, withdrawAmount, swapFeesLoss);
     }
 
     /**
@@ -168,7 +180,7 @@ contract Pool is BasePool {
         }
     }
 
-    function _checkInaccuracy(uint256 expectedValue, uint256 realValue) internal view {
+    function _checkInaccuracy(uint256 expectedValue, uint256 realValue) internal pure {
         if (expectedValue > realValue) {
             require(expectedValue - realValue <= KedrConstants._INACCURACY, "INCORRECT_OPERATION");
         } else {
