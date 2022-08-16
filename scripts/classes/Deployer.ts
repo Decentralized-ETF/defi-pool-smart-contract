@@ -1,12 +1,12 @@
 import hre, { ethers } from 'hardhat'
 import {poolParams, ROUTERS, TEST_ROUTERS, TOKENS} from "../config";
-import {PoolDetails, Routers, TestRouter, Token} from "../interfaces";
+import {PoolDetails, Routers, TestRouter, Token, PoolConfig} from "../interfaces";
 import {Factory, MockToken, MockWeth} from "../../typechain";
 
 
 export class Deployer {
-  constructor() {
 
+  constructor() {
   }
 
   async deployOnChain(verify: boolean = false) {
@@ -19,10 +19,10 @@ export class Deployer {
     const routerTypes = routers.map(val => val.type);
     const defaultRouter = routers.find(val => val.isDefault)?.address || routers[0].address
 
-    const Swapper = await this.deploy("Swapper", [routerAddresses, routerTypes, defaultRouter], verify);
+    const Swapper = await this.deploy("Swapper", [routerAddresses, routerTypes, defaultRouter, ethers.constants.AddressZero], verify);
     const Factory = await this.deploy("Factory", [governance.address, Swapper.address], verify);
 
-    await this.createPool(Factory, Swapper.address); // create default pool
+    await this.createPool(Factory, Swapper.address, TOKENS, ""); // create default pool
     return { swapper: Swapper, factory: Factory, defaultRouter }
   }
 
@@ -71,7 +71,9 @@ export class Deployer {
   }
 
   async createPool(Factory: Factory, swapper: string, _tokensConfig = TOKENS, _entryAsset: string = "", _test: boolean = false) {
-    const tokens = _tokensConfig.filter(val => val.network == hre.network.name).map(token => token.address);
+    const tokensByNetwork = _tokensConfig.filter(val => val.network == hre.network.name);
+    const tokens = tokensByNetwork.filter(token => token.name !== "DAI").map(token => token.address);
+    const entryAsset = tokensByNetwork.find(token => token.name === "DAI")?.address as string;
     const poolDetails: PoolDetails = {
       swapper,
       successFee: poolParams.successFee,
@@ -84,12 +86,11 @@ export class Deployer {
       _entryAsset = tokens[0]
     }
     if(_test) {
-      const poolInfo = await Factory.callStatic.create(poolDetails, _entryAsset);
-      await Factory.create(poolDetails, _entryAsset);
+      const poolInfo = await Factory.callStatic.create(poolDetails, entryAsset);
+      await Factory.create(poolDetails, entryAsset);
       return poolInfo
-
     }
-    return await Factory.create(poolDetails, _entryAsset);
+    return await Factory.create(poolDetails, entryAsset);
   }
 
   async sleep(seconds: number) {

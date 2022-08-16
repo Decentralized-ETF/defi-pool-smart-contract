@@ -27,3 +27,9 @@ export interface Token {
     network: string;
     name: string;
 }
+
+export interface PoolConfig {
+    tokens: Token[];
+    weights: string[]
+    entryAsset: Token;
+}

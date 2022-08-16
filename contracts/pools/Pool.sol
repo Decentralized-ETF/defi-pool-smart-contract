@@ -72,7 +72,6 @@ contract Pool is BasePool {
             if (assets[i] != entryAsset) {
                 totalReceived += _sellToExactAmount(assets[i], entryAsset, amountOut);
             } else {
-                console.log(amountOut, "amountOut");
                 totalReceived += amountOut;
             }
         }
@@ -81,10 +80,9 @@ contract Pool is BasePool {
         
         uint256 totalValueAfter = totalValue();
         uint256 swapFeesLoss = totalValueBefore - totalValueAfter;
-        console.log(swapFeesLoss, "swapFeesLoss");
         withdrawAmount = totalReceived - swapFeesLoss; // adjust withdraw amount by possible INACCURACY and deduct swapFee losses
         uint256 successFee = _calcualteSuccessFee(withdrawAmount);
-        withdrawAmount = withdrawAmount - successFee; // deduct successFee
+        withdrawAmount = withdrawAmount - successFee; // deduct successFee, withdrawAmount is the amount user really received
 
         address feeReceiver = PoolStorage.feeReceiver();
         if (isNative) {
@@ -94,7 +92,7 @@ contract Pool is BasePool {
             TransferHelper.safeTransfer(entryAsset, msg.sender, withdrawAmount);
             TransferHelper.safeTransfer(entryAsset, feeReceiver, successFee);
         }
-        PoolStorage.recordWithdrawal(msg.sender, _shares, successFee, withdrawAmount, swapFeesLoss);
+        PoolStorage.recordWithdrawal(msg.sender, _shares, withdrawAmount, successFee, swapFeesLoss);
     }
 
     /**

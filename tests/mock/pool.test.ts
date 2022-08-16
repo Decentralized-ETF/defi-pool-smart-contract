@@ -14,6 +14,15 @@ import {MockToken, Pool, PoolStorage} from "../../typechain";
 const { expect } = chai;
 
 
+function equalWithInaccuracy(expected: BigNumber, actual: BigNumber) {
+    const INACCURACY = BigNumber.from("5");
+    if (expected.gte(actual)) {
+        expect(expected.sub(actual)).lte(INACCURACY)
+    } else {
+        expect(actual.sub(expected)).lte(INACCURACY)
+    }
+}
+
 describe('Pool Contract', () => {
     let deployer: Deployer
     let governanceAcc: SignerWithAddress, governance: string,
@@ -172,8 +181,6 @@ describe('Pool Contract', () => {
                 const totalSuccessFeeCollectedBefore = await poolStorage.totalSuccessFeeCollected()
                 const entryTokenBalanceBefore = await tokenA.balanceOf(investor)
                 const kTokenBalance = await poolStorage.balanceOf(investor)
-                const calculatedWithDrawAmount = await poolStorage.callStatic.calculateEntryAmount(kTokenBalance)
-                const calculatedSuccessFee = calculatedWithDrawAmount.mul(poolDetails.successFee).div(denominator)
 
                 await pool.connect(investorAcc).withdraw(kTokenBalance)
 
@@ -181,10 +188,10 @@ describe('Pool Contract', () => {
                 const totalSuccessFeeCollectedAfter = await poolStorage.totalSuccessFeeCollected()
                 const entryTokenBalanceAfter = await tokenA.balanceOf(investor)
 
-                expect(totalWithdrawnEntryAssetAfter).to.equal(totalWithdrawnEntryAssetBefore.add(calculatedWithDrawAmount))
-                expect(totalSuccessFeeCollectedAfter).to.equal(totalSuccessFeeCollectedBefore.add(calculatedSuccessFee))
+                expect(totalWithdrawnEntryAssetAfter).gt(totalWithdrawnEntryAssetBefore)
+                expect(totalSuccessFeeCollectedAfter).gt(totalSuccessFeeCollectedBefore)
                 expect(await poolStorage.balanceOf(investor)).to.equal(0)
-                expect(entryTokenBalanceAfter).to.equal(entryTokenBalanceBefore.add(calculatedWithDrawAmount))
+                expect(entryTokenBalanceAfter).gt(entryTokenBalanceBefore) // todo: think how to enable exact checking with swapFees conditions
             })
         })
 
@@ -214,7 +221,7 @@ describe('Pool Contract', () => {
                 sharePriceBeforeMint = await poolStorage.callStatic.sharePrice()
 
                 // Mint assets to imitate earning
-                await tokenB.mint(pool.address, ethers.utils.parseEther("100"))
+                await tokenB.mint(pool.address, ethers.utils.parseEther("200"))
                 await tokenC.mint(pool.address, ethers.utils.parseEther("200"))
                 sharePriceAfterMint = await poolStorage.callStatic.sharePrice()
 
@@ -224,9 +231,11 @@ describe('Pool Contract', () => {
                 sharePriceAfterWithdraw = await poolStorage.callStatic.sharePrice()
                 entryBalanceAfterWithdraw = await tokenA.balanceOf(investor)
                 balanceKAfterWithdraw = await poolStorage.balanceOf(investor)
+
+
                 
                 expect(sharePriceAfterMint).gt(sharePriceBeforeMint)
-                expect(sharePriceAfterWithdraw).eq(sharePriceAfterMint)
+                equalWithInaccuracy(sharePriceAfterWithdraw, sharePriceAfterMint)
                 expect(entryBalanceAfterWithdraw).to.gt(entryBalanceBefore)
                 expect(balanceKAfterWithdraw).to.equal(0)
             })

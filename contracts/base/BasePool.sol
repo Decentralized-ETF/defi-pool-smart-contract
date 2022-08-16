@@ -9,7 +9,6 @@ import '../interfaces/IPool.sol';
 import '../interfaces/IPoolStorage.sol';
 import '../libraries/KedrConstants.sol';
 import '../interfaces/ISwapper.sol';
-import "hardhat/console.sol";
 
 abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
     uint64 public override poolId;

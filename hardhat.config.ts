@@ -3,6 +3,7 @@ import * as dotenv from "dotenv";
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-waffle";
+import "hardhat-contract-sizer";
 import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
@@ -10,6 +11,8 @@ import "@nomiclabs/hardhat-ethers";
 import "@openzeppelin/hardhat-upgrades";
 
 dotenv.config();
+
+const { pk } = require("./secrets.json");
 
 task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   const accounts = await hre.ethers.getSigners();
@@ -65,7 +68,7 @@ const config: HardhatUserConfig = {
       // timeoutBlocks: 200,
       // networkCheckTimeout: 50000000,
       accounts: [
-        "0x39f58ea07aee685a18106d58fd2883b590573866fdef027b07ef9014cb3ef520",
+        pk
       ],
       // skipDryRun: true,
       gas: 6000000,
@@ -78,7 +81,7 @@ const config: HardhatUserConfig = {
       // timeoutBlocks: 200,
       // networkCheckTimeout: 50000000,
       accounts: [
-        "320ab691eb1cd32e832d1d56702e7ed69bf6f8ffc398bcf71daebad39c9280a9",
+        pk
       ],
       // skipDryRun: true,
       gas: 6000000,
