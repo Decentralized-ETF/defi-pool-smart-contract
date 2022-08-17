@@ -2,7 +2,6 @@
 pragma solidity >=0.7.6;
 
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import '@openzeppelin/contracts/security/Pausable.sol';
 import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '../interfaces/IPool.sol';
@@ -10,7 +9,7 @@ import '../interfaces/IPoolStorage.sol';
 import '../libraries/KedrConstants.sol';
 import '../interfaces/ISwapper.sol';
 
-abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
+abstract contract BasePool is IPool, ReentrancyGuard {
     uint64 public override poolId;
     address public override factory;
     address public override poolStorage;
@@ -101,14 +100,6 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         return PoolStorage.entryAsset();
     }
 
-    function pause() external onlyFactory {
-        _pause();
-    }
-
-    function unpause() external onlyFactory {
-        _unpause();
-    }
-
     /**
      * @param _weight - can be zero. in this case asset is excluded from portfolio for some time
      */
@@ -177,7 +168,7 @@ abstract contract BasePool is IPool, ReentrancyGuard, Pausable {
         return (_amount  * poolDetails.successFee) / KedrConstants._FEE_DENOMINATOR;
     }
 
-    function _weightsSum(uint24[] memory weights) internal view returns (uint24 sum) {
+    function _weightsSum(uint24[] memory weights) internal pure returns (uint24 sum) {
         for (uint256 i; i < weights.length; ++i) {
             sum += weights[i];
         }
