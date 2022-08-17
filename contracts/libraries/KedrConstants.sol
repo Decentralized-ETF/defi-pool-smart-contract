@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: MIT
-
-pragma solidity >=0.7.6;
+//SPDX-License-Identifier: Unlicensed
+pragma solidity 0.8.15;
 
 library KedrConstants {
     uint16 internal constant _FEE_DENOMINATOR = 10000;

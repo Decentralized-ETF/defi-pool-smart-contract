@@ -1,10 +1,11 @@
-pragma solidity >=0.7.6;
+pragma solidity 0.8.15;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 import '../interfaces/IPool.sol';
 import '../interfaces/IPoolStorage.sol';
+import '../libraries/KedrLib.sol';
 import '../pools/Pool.sol';
 import './PoolStorage.sol';
 
@@ -58,7 +59,7 @@ contract Factory is Ownable, ReentrancyGuard {
     function createPool(IPool.PoolDetails memory poolDetails, address _swapper) public returns (address pool) {
         uint256 poolId = pools.length + 1;
         bytes memory poolBytecode = abi.encodePacked(type(Pool).creationCode, abi.encode(poolId, _swapper));
-        pool = _deploy(poolBytecode);
+        pool = KedrLib.deploy(poolBytecode);
         IPool(pool).initialize(poolDetails);
         pools.push(pool);
         emit PoolCreated(pool, poolId);
@@ -73,7 +74,7 @@ contract Factory is Ownable, ReentrancyGuard {
         bytes memory symbol = abi.encodePacked('k', entrySymbol);
         bytes memory name = abi.encodePacked('KEDR_', entrySymbol);
         bytes memory storageBytecode = abi.encodePacked(type(PoolStorage).creationCode, abi.encode(id, _entryAsset, defaultFeeReceiver, symbol, name));
-        poolStorage = _deploy(storageBytecode);
+        poolStorage = KedrLib.deploy(storageBytecode);
         poolStorages.push(poolStorage);
         emit PoolStorageCreated(poolStorage, id);
     }
@@ -84,19 +85,6 @@ contract Factory is Ownable, ReentrancyGuard {
     function _link(address _pool, address _poolStorage) internal {
         IPoolStorage(_poolStorage).link(_pool);
         IPool(_pool).link(_poolStorage);
-    }
-
-    /**
-     * @dev deploys new contract using create2 with check of deployment
-     */
-    function _deploy(bytes memory bytecode) internal returns (address _contract) {
-        assembly {
-            _contract := create2(0, add(bytecode, 32), mload(bytecode), '')
-            if iszero(extcodesize(_contract)) {
-                revert(0, 0)
-            }
-        }
-        return _contract;
     }
 
     // ADMIN SETTERS:

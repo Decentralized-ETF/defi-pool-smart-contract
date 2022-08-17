@@ -1,10 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity >=0.7.6;
+pragma solidity 0.8.15;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import '../libraries/KedrLib.sol';
-
-interface IPoolStorage is IERC20 {
+interface IPoolStorage {
     function entryAsset() external view returns (address);
 
     function pool() external view returns (address);

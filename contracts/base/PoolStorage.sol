@@ -1,9 +1,8 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity >=0.7.6;
+pragma solidity 0.8.15;
 
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '../libraries/KedrLib.sol';
 import '../libraries/KedrConstants.sol';
 import '../interfaces/IPoolStorage.sol';
 import '../interfaces/IPool.sol';
@@ -21,7 +20,7 @@ contract PoolStorage is ERC20 {
     uint256 public totalReceivedEntryAsset = 0;
     uint256 public totalWithdrawnEntryAsset = 0;
     uint256 public totalSwapFeesLoss = 0;
-    uint256 internal constant NUMERATOR = 10e18;
+    uint256 internal constant NUMERATOR = 1e18;
     IPool internal Pool;
 
     event Withdrawal(address indexed user, address indexed entryAsset, uint256 shares, uint256 amountReceived, uint256 successFee, uint256 swapFeesLoss);
@@ -94,7 +93,6 @@ contract PoolStorage is ERC20 {
     }
 
     function calculateSharesBySpecificPrice(uint256 _entryAmount, uint256 _sharePrice) public pure returns (uint256) {
-        require(_sharePrice > 0, "ZERO_SHARE_PRICE");
         return _entryAmount * NUMERATOR / _sharePrice;
     }
 

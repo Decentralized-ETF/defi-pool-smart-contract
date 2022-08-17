@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity >=0.7.6;
+pragma solidity 0.8.15;
 
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
@@ -7,6 +7,7 @@ import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '../interfaces/IPool.sol';
 import '../interfaces/IPoolStorage.sol';
 import '../libraries/KedrConstants.sol';
+import '../libraries/KedrLib.sol';
 import '../interfaces/ISwapper.sol';
 
 abstract contract BasePool is IPool, ReentrancyGuard {
@@ -23,8 +24,6 @@ abstract contract BasePool is IPool, ReentrancyGuard {
         poolId = _poolId;
         Swapper = ISwapper(_swapper);
     }
-
-    
 
     modifier onlyFactory() {
         require(msg.sender == factory, 'CALLER_IS_NOT_FACTORY');
@@ -78,24 +77,6 @@ abstract contract BasePool is IPool, ReentrancyGuard {
         _totalValue += _assetBalance(_entryAsset);
     }
 
-    /**
-     * Returns totalValue() with array of values per each asset
-     */
-    function totalValues() internal returns (uint256 _totalValue, uint256[] memory _values) {
-        address[] memory poolAssets = poolDetails.assets; // gas savings
-        address _entryAsset = entryAsset(); // gas savings
-        for (uint256 i; i < poolAssets.length; ++i) {
-            address asset = poolAssets[i];
-            uint256 assetBalance = _assetBalance(asset);
-            if (assetBalance > 0) {
-                uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, assetBalance);
-                require(valueConverted > 0, 'ORACLE_ERROR');
-                _totalValue += valueConverted;
-                _values[i] = valueConverted;
-            }
-        }
-    }
-
     function entryAsset() public view override returns (address) {
         return PoolStorage.entryAsset();
     }
@@ -132,23 +113,6 @@ abstract contract BasePool is IPool, ReentrancyGuard {
     function details() external view override returns (PoolDetails memory) {
         return poolDetails;
     }
-
-    function entryFee() external view override returns (uint16) {
-        return poolDetails.entryFee;
-    }
-
-    function successFee() external view override returns (uint16) {
-        return poolDetails.successFee;
-    }
-
-    function minInvestment() external view override returns (uint256) {
-        return poolDetails.minInvestment;
-    }
-
-    /**
-     * @dev must be implemented in inherited classes
-     */
-    function rebalance() public virtual override {}
 
     /**
      * @dev must be implemented in inherited classes

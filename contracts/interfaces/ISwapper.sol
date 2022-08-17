@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity >=0.7.6;
+pragma solidity 0.8.15;
 
 interface ISwapper {
     function swap(
@@ -20,6 +20,4 @@ interface ISwapper {
         address _tokenOut,
         uint256 _amountOut
     ) external returns (uint256);
-
-    // function getRouterContractAddress() external view returns (address);
 }

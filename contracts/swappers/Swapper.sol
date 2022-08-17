@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity >=0.7.6;
+pragma solidity 0.8.15;
 
 import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol';
@@ -11,6 +11,7 @@ import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '../interfaces/ISwapper.sol';
 import '../libraries/KedrConstants.sol';
+import '../libraries/KedrLib.sol';
 
 contract Swapper is ISwapper {
     mapping(address => uint8) public routerTypes; // router to ROUTER_TYPE
@@ -50,7 +51,7 @@ contract Swapper is ISwapper {
         (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
 
         uint256 balanceBefore;
-        if (!isNative(_tokenIn)) {
+        if (!KedrLib.isNative(_tokenIn)) {
             TransferHelper.safeTransferFrom(_tokenIn, msg.sender, address(this), _amount);
             TransferHelper.safeApprove(_tokenIn, router, _amount);
             balanceBefore = IERC20(_tokenOut).balanceOf(_recipient);
@@ -174,8 +175,8 @@ contract Swapper is ISwapper {
         address factory = IUniswapV2Router02(router).factory();
         address WETH = IUniswapV2Router02(router).WETH();
 
-        if (isNative(tokenIn)) tokenIn = WETH;
-        if (isNative(tokenOut)) tokenOut = WETH;
+        if (KedrLib.isNative(tokenIn)) tokenIn = WETH;
+        if (KedrLib.isNative(tokenOut)) tokenOut = WETH;
 
         if (IUniswapV2Factory(factory).getPair(tokenIn, tokenOut) != address(0)) {
             address[] memory route = new address[](2);
@@ -211,8 +212,8 @@ contract Swapper is ISwapper {
         address factory = IPeripheryImmutableState(router).factory();
         address WETH = IPeripheryImmutableState(router).WETH9();
 
-        if (isNative(tokenIn)) tokenIn = WETH;
-        if (isNative(tokenOut)) tokenOut = WETH;
+        if (KedrLib.isNative(tokenIn)) tokenIn = WETH;
+        if (KedrLib.isNative(tokenOut)) tokenOut = WETH;
 
         (route, ) = _checkEveryFeeForV3Pool(factory, tokenIn, tokenOut);
 
@@ -290,9 +291,5 @@ contract Swapper is ISwapper {
         address _recipient
     ) internal {
         // future work
-    }
-
-    function isNative(address token) internal pure returns (bool) {
-        return token == address(0);
     }
 }
