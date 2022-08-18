@@ -1,7 +1,9 @@
 import hre, { ethers } from 'hardhat'
 import { poolParams, ROUTERS, TEST_ROUTERS, TOKENS } from '../config'
 import { PoolDetails, Routers, TestRouter, Token, PoolConfig } from '../interfaces'
-import { Factory, MockToken, MockWeth } from '../../typechain'
+import { Factory, MockToken, MockWeth, Swapper } from '../../typechain'
+import { saveJSON } from '../utils'
+import { Contract } from 'ethers'
 
 export class Deployer {
     constructor() {}
@@ -16,10 +18,11 @@ export class Deployer {
         const routerTypes = routers.map((val) => val.type)
         const defaultRouter = routers.find((val) => val.isDefault)?.address || routers[0].address
 
-        const Swapper = await this.deploy('Swapper', [routerAddresses, routerTypes, defaultRouter, ethers.constants.AddressZero], verify)
-        const Factory = await this.deploy('Factory', [governance.address, Swapper.address], verify)
+        const Swapper = await this.deploy('Swapper', [routerAddresses, routerTypes, defaultRouter, ethers.constants.AddressZero], verify) as Swapper;
+        const Factory = await this.deploy('Factory', [governance.address, Swapper.address], verify) as Factory;
 
         await this.createPool(Factory, Swapper.address, TOKENS, '') // create default pool
+        await saveJSON({swapper: Swapper.address, factory: Factory.address}, "core");
         return { swapper: Swapper, factory: Factory, defaultRouter }
     }
 
@@ -41,7 +44,7 @@ export class Deployer {
         return { router, routerFactory }
     }
 
-    async deploy(contractName: string, args: any[], verify: boolean = false): Promise<any> {
+    async deploy(contractName: string, args: any[], verify: boolean = false): Promise<Contract> {
         const needLibrary = ['Pool', 'Factory']
         const Lib = await ethers.getContractFactory('KedrLib')
         const lib = await Lib.deploy()
@@ -80,7 +83,8 @@ export class Deployer {
 
     async createPool(Factory: Factory, swapper: string, _tokensConfig = TOKENS, _entryAsset: string = '', _test: boolean = false) {
         const tokensByNetwork = _tokensConfig.filter((val) => val.network == hre.network.name)
-        const tokens = tokensByNetwork.filter((token) => token.name !== 'DAI').map((token) => token.address)
+        const filteredTokens = tokensByNetwork.filter((token) => token.name !== 'DAI')
+        const tokens = filteredTokens.map((token) => token.address)
         let entryAsset = tokensByNetwork.find((token) => token.name === 'DAI')?.address as string
         const poolDetails: PoolDetails = {
             swapper,
@@ -97,9 +101,12 @@ export class Deployer {
         if (_test) {
             const poolInfo = await Factory.callStatic.create(poolDetails, entryAsset)
             await Factory.create(poolDetails, entryAsset)
+            console.log(`Pool created on address: ${poolInfo} with params:\nEntry asset: ${entryAsset}\nTokens: ${filteredTokens}`)
             return poolInfo
         }
-        return await Factory.create(poolDetails, entryAsset)
+        const response = await Factory.create(poolDetails, entryAsset)
+        console.log(`Pool created`, response)
+        return response;
     }
 
     async sleep(seconds: number) {
