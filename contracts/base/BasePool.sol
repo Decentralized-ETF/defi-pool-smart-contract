@@ -68,13 +68,13 @@ abstract contract BasePool is IPool, ReentrancyGuard {
         for (uint256 i; i < poolAssets.length; ++i) {
             address asset = poolAssets[i];
             uint256 assetBalance = _assetBalance(asset);
-            if (assetBalance > 0) {
+            if (assetBalance > 0 && asset != _entryAsset) {
                 uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, assetBalance);
                 require(valueConverted > 0, 'ORACLE_ERROR');
                 _totalValue += valueConverted;
             }
         }
-        _totalValue += _assetBalance(_entryAsset);
+        _totalValue += _assetBalance(_entryAsset); // additional counting entryAsset balance
     }
 
     function entryAsset() public view override returns (address) {

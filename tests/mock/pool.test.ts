@@ -242,8 +242,8 @@ describe('Pool Contract', () => {
         })
 
         describe('Includes entryAsset as a pool asset', async function () {
-            let balanceABefore: BigNumber, balanceABeforeGov: BigNumber, balanceKBefore: BigNumber;
-            let balanceAAfter: BigNumber, balanceAAfterGov: BigNumber, balanceKAfter: BigNumber;
+            let balanceABefore: BigNumber, balanceABeforeGov: BigNumber, balanceKBefore: BigNumber, poolValueAfterFirstInvest: BigNumber
+            let balanceAAfter: BigNumber, balanceAAfterGov: BigNumber, balanceKAfter: BigNumber, sharePrice: BigNumber
 
             before(async function () {
 
@@ -264,6 +264,7 @@ describe('Pool Contract', () => {
                 balanceABefore = await tokenA.balanceOf(investor)
                 balanceABeforeGov = await tokenA.balanceOf(governance)
                 balanceKBefore = await poolStorage.balanceOf(investor)
+                sharePrice = await poolStorage.callStatic.sharePrice(); // callStatic because of UniswapV3 Quoter...
 
                 await tokenA.connect(investorAcc).approve(pool.address, ethers.constants.MaxUint256)
                 await pool.connect(investorAcc).invest(investor, entryAmountToInvest)
@@ -276,7 +277,10 @@ describe('Pool Contract', () => {
             it('First invest.', async function () {
                 expect(balanceAAfter).to.equal(balanceABefore.sub(entryAmountToInvest))
                 expect(balanceAAfterGov).to.equal(balanceABeforeGov.add(fee))
-                expect(balanceKAfter).to.equal(balanceKBefore.add(investedAmount))
+                poolValueAfterFirstInvest = await pool.callStatic.totalValue();
+                const expectedShares = await poolStorage.calculateSharesBySpecificPrice(poolValueAfterFirstInvest, sharePrice)
+                expect(balanceKAfter).to.equal(balanceKBefore.add(expectedShares))
+                
                 //check poolStorage
                 expect(await poolStorage.totalReceivedEntryAsset()).to.equal(investedAmount)
                 expect(await poolStorage.totalEntryFeeCollected()).to.equal(fee)
@@ -289,10 +293,14 @@ describe('Pool Contract', () => {
                 balanceABefore = await tokenA.balanceOf(investor2)
                 balanceABeforeGov = await tokenA.balanceOf(governance)
                 balanceKBefore = await poolStorage.balanceOf(investor2)
-                const calculatedKTokens = await poolStorage.callStatic.calculateShares(entryAmountToInvest.sub(fee))
+
+                const sharePrice2 = await poolStorage.callStatic.sharePrice(); 
 
                 await tokenA.connect(investor2Acc).approve(pool.address, ethers.constants.MaxUint256)
                 await pool.connect(investor2Acc).invest(investor2, entryAmountToInvest)
+
+                const secondInvestAmount = (await pool.callStatic.totalValue()).sub(poolValueAfterFirstInvest);
+                const calculatedKTokens = await poolStorage.callStatic.calculateSharesBySpecificPrice(secondInvestAmount, sharePrice2);
 
                 balanceAAfter = await tokenA.balanceOf(investor2)
                 balanceAAfterGov = await tokenA.balanceOf(governance)
@@ -315,7 +323,6 @@ describe('Pool Contract', () => {
                 const entryTokenBalanceBefore = await tokenA.balanceOf(investor)
                 const kTokenBalance = await poolStorage.balanceOf(investor)
                 const calculatedWithDrawAmount = await poolStorage.callStatic.calculateEntryAmount(kTokenBalance)
-                const calculatedSuccessFee = calculatedWithDrawAmount.mul(poolDetails.successFee).div(denominator)
 
                 await pool.connect(investorAcc).withdraw(kTokenBalance)
 
@@ -323,10 +330,10 @@ describe('Pool Contract', () => {
                 const totalSuccessFeeCollectedAfter = await poolStorage.totalSuccessFeeCollected()
                 const entryTokenBalanceAfter = await tokenA.balanceOf(investor)
 
-                expect(totalWithdrawnEntryAssetAfter).to.equal(totalWithdrawnEntryAssetBefore.add(calculatedWithDrawAmount))
-                expect(totalSuccessFeeCollectedAfter).to.equal(totalSuccessFeeCollectedBefore.add(calculatedSuccessFee))
+                expect(totalWithdrawnEntryAssetAfter).gt(totalWithdrawnEntryAssetBefore)
+                expect(totalSuccessFeeCollectedAfter).gt(totalSuccessFeeCollectedBefore)
                 expect(await poolStorage.balanceOf(investor)).to.equal(0)
-                expect(entryTokenBalanceAfter).to.equal(entryTokenBalanceBefore.add(calculatedWithDrawAmount))
+                expect(entryTokenBalanceAfter).gt(entryTokenBalanceBefore)
             })
         })
     })

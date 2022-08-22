@@ -101,7 +101,7 @@ export class Deployer {
         if (_test) {
             const poolInfo = await Factory.callStatic.create(poolDetails, entryAsset)
             await Factory.create(poolDetails, entryAsset)
-            console.log(`Pool created on address: ${poolInfo} with params:\nEntry asset: ${entryAsset}\nTokens: ${filteredTokens}`)
+            console.log(`Pool created on address: ${poolInfo} with params:\nEntry asset: ${entryAsset}\nTokens: ${filteredTokens.map(token => token.name)}`)
             return poolInfo
         }
         const response = await Factory.create(poolDetails, entryAsset)
