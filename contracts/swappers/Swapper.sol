@@ -49,9 +49,11 @@ contract Swapper is ISwapper {
     ) external override returns (uint256) {
         require(_amount > 0, 'ZERO_AMOUNT');
         (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
+        bool isNativeIn = KedrLib.isNative(_tokenIn);
+        bool isNativeOut = KedrLib.isNative(_tokenOut);
 
         uint256 balanceBefore;
-        if (!KedrLib.isNative(_tokenIn)) {
+        if (!isNativeIn) {
             TransferHelper.safeTransferFrom(_tokenIn, msg.sender, address(this), _amount);
             TransferHelper.safeApprove(_tokenIn, router, _amount);
             balanceBefore = IERC20(_tokenOut).balanceOf(_recipient);
@@ -62,7 +64,7 @@ contract Swapper is ISwapper {
         if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
             _balancerSwap(router, _tokenIn, _tokenOut, _amount, _recipient);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
-            _v2swap(router, getAddressRoute(router, routerType, _tokenIn, _tokenOut), _amount, _recipient);
+            _v2swap(router, getAddressRoute(router, routerType, _tokenIn, _tokenOut), _amount, _recipient, isNativeIn, isNativeOut);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
             _v3swap(router, getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amount, _recipient);
         } else {
@@ -259,15 +261,31 @@ contract Swapper is ISwapper {
         address _router,
         address[] memory route,
         uint256 _amount,
-        address _recipient
+        address _recipient,
+        bool isNativeIn,
+        bool isNativeOut
     ) internal returns (uint256) {
-        uint256[] memory amounts = IUniswapV2Router02(_router).swapExactTokensForTokens(
-            _amount,
-            1, // todo: think about general control of max slippage if need
-            route,
-            _recipient,
-            block.timestamp
-        );
+        uint256[] memory amounts;
+        uint256 deadline = block.timestamp;
+        if (isNativeIn) {
+            amounts = IUniswapV2Router02(_router).swapExactETHForTokens{value: msg.value}(1, route, _recipient, deadline);
+        } else if (isNativeOut) {
+            amounts = IUniswapV2Router02(_router).swapExactTokensForETH(
+                _amount,
+                1, // todo: think about general control of max slippage if need
+                route,
+                _recipient,
+                deadline
+            );
+        } else {
+            amounts = IUniswapV2Router02(_router).swapExactTokensForTokens(
+                _amount,
+                1, // todo: think about general control of max slippage if need
+                route,
+                _recipient,
+                deadline
+            );
+        }
         return amounts[amounts.length - 1];
     }
 
