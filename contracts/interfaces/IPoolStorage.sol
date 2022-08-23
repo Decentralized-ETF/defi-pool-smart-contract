@@ -18,9 +18,11 @@ interface IPoolStorage {
 
     function calculateEntryAmount(uint256 shares) external returns (uint256);
 
-    function recordInvestment(address investor, uint256 amount, uint256 entryFee, uint256 shares, address feeReceiver, uint256 swapFeesLoss) external;
+    function calculateEntryAmountBySpeicificPrice(uint256 shares, uint256 sharePrice) external returns (uint256);
 
-    function recordWithdrawal(address investor, uint256 shares, uint256 successFee, uint256 withdrawAmount, uint256 swapFeesLoss) external;
+    function recordInvestment(address investor, uint256 shares, uint256 sharePrice, uint256 amountInvested, uint256 entryFee, uint256 swapFeesLoss) external;
+
+    function recordWithdrawal(address investor, uint256 shares, uint256 sharePrice, uint256 withdrawAmount, uint256 successFee, uint256 swapFeesLoss) external;
 
     function totalReceivedEntryAssetAmount() external view returns (uint256);
 

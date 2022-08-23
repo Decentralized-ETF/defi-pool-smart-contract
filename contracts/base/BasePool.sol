@@ -18,6 +18,7 @@ abstract contract BasePool is IPool, ReentrancyGuard {
     PoolDetails public poolDetails;
     IPoolStorage internal PoolStorage;
     ISwapper internal Swapper;
+    bool public balanceable;
 
     constructor(uint64 _poolId, address _swapper) {
         factory = msg.sender;
@@ -33,7 +34,9 @@ abstract contract BasePool is IPool, ReentrancyGuard {
     // called once by the factory at time of deployment
     function initialize(PoolDetails calldata _poolDetails) external override onlyFactory {
         require(_poolDetails.assets.length == _poolDetails.weights.length, 'INVALID_ALLOCATIONS');
+        // todo: check assets for pair existence
         poolDetails = _poolDetails;
+        balanceable = _poolDetails.balanceable;
         weightsSum = _weightsSum(_poolDetails.weights);
     }
 

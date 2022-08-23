@@ -232,8 +232,6 @@ describe('Pool Contract', () => {
                 entryBalanceAfterWithdraw = await tokenA.balanceOf(investor)
                 balanceKAfterWithdraw = await poolStorage.balanceOf(investor)
 
-
-                
                 expect(sharePriceAfterMint).gt(sharePriceBeforeMint)
                 equalWithInaccuracy(sharePriceAfterWithdraw, sharePriceAfterMint)
                 expect(entryBalanceAfterWithdraw).to.gt(entryBalanceBefore)

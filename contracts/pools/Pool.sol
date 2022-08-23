@@ -45,14 +45,15 @@ contract Pool is BasePool {
         }
 
         uint256 valueAdded = totalValue() - totalValueBefore; // we need to use "valueAdded" instead "invested" to exclude swap fee losses from calculating
+        uint256 shares = PoolStorage.calculateSharesBySpecificPrice(valueAdded, sharePrice);
         PoolStorage.recordInvestment(
             investor,
+            shares,
+            sharePrice,
             invested,
             entryFee,
-            PoolStorage.calculateSharesBySpecificPrice(valueAdded, sharePrice),
-            feeReceiver,
             invested - valueAdded
-        ); // here minting of kTokens happens
+        );
     }
 
     /**
@@ -62,7 +63,8 @@ contract Pool is BasePool {
     function withdraw(uint256 _shares) public override {
         require(_shares > 0, 'ZERO_AMOUNT');
         address entryAsset = entryAsset(); // gas saving
-        uint256 withdrawAmount = PoolStorage.calculateEntryAmount(_shares);
+        uint256 sharePrice = PoolStorage.sharePrice();
+        uint256 withdrawAmount = PoolStorage.calculateEntryAmountBySpeicificPrice(_shares, sharePrice);
         address[] memory assets = poolDetails.assets;
         uint24[] memory weights = poolDetails.weights;
         uint256 totalReceived;
@@ -92,7 +94,7 @@ contract Pool is BasePool {
             TransferHelper.safeTransfer(entryAsset, msg.sender, withdrawAmount);
             TransferHelper.safeTransfer(entryAsset, feeReceiver, successFee);
         }
-        PoolStorage.recordWithdrawal(msg.sender, _shares, withdrawAmount, successFee, swapFeesLoss);
+        PoolStorage.recordWithdrawal(msg.sender, _shares, sharePrice, withdrawAmount, successFee, swapFeesLoss);
     }
 
     function _sellToExactAmount(

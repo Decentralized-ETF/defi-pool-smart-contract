@@ -28,6 +28,10 @@ contract Factory is Ownable, ReentrancyGuard {
         return pools.length;
     }
 
+    function poolsStorageCount() external view returns (uint256) {
+        return poolStorages.length;
+    }
+
     /**
      * The main function for Pool Creation. Creates new Pool & PoolStorage and link each other.
      */

@@ -20,6 +20,7 @@ export interface PoolDetails {
     weights: string[]
     entryFee: string
     successFee: string
+    balanceable: true
 }
 
 export interface Token {

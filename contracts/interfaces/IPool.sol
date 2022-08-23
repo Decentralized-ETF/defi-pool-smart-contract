@@ -3,12 +3,13 @@ pragma solidity 0.8.15;
 
 interface IPool {
     struct PoolDetails {
-        address swapper;
+        address swapper; //todo: setter for swapper
         uint256 minInvestment;
         address[] assets;
         uint24[] weights;
         uint16 entryFee;
         uint16 successFee;
+        bool balanceable;
     }
 
     struct PoolStorageDetails {

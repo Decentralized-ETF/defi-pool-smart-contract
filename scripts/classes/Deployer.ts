@@ -93,6 +93,7 @@ export class Deployer {
             assets: tokens,
             weights: new Array(tokens.length).fill((100 / tokens.length).toFixed(0).toString()),
             minInvestment: poolParams.minInvestment,
+            balanceable: true
         }
         if (_entryAsset) {
           entryAsset = _entryAsset;
