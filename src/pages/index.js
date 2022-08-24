@@ -1,5 +1,5 @@
 import Web3Modal from "web3modal";
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import Pool from "../../artifacts/contracts/Pool.sol/Pool.json";
 import Quoter from "@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json";
 import Erc20Token from "../abi/Erc20Token.json";
@@ -23,22 +23,24 @@ function HomePage() {
       );
 
       const poolData = await contract.getPoolData();
-      const { poolTokens, tokenBalances } = poolData;
+      const { poolTokens, poolTokenPercentages } = poolData;
+      const value = ethers.utils.parseUnits("1", 18);
+
       const outputs = [];
 
       for (let i = 0; i < poolTokens.length; i++) {
-        console.log(tokenBalances[i].toString());
+        const inputAmount = value.mul(poolTokenPercentages[i]).div(100);
+
         const quotedAmountOut =
           await quoteContract.callStatic.quoteExactInputSingle(
-            poolTokens[i],
             tokenAddress,
+            poolTokens[i],
             3000,
-            tokenBalances[i].toString(),
+            inputAmount.toString(),
             0
           );
         outputs.push(quotedAmountOut.toString());
       }
-
       console.log(outputs);
     } catch (error) {
       console.log(error);
@@ -163,6 +165,11 @@ function HomePage() {
     });
     await p2.wait();
   };
+
+
+  const uniswapV3Test = async (e) => {
+
+  }
 
   return (
     <div>
