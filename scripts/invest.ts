@@ -33,36 +33,37 @@ async function invest() {
 
     console.log(`Initial value of pool: ${ethers.utils.formatUnits(initialTotalValue, entryDecimals)} ${entrySymbol}`)
 
-    const balance = await ethers.provider.getBalance(userAddress)
-    const val = balance.div(10);
+    if (entryBalance.eq(BigNumber.from("0"))) {
+        console.log("need to buy entryAsset")
+        const val = (await ethers.provider.getBalance(userAddress)).div(10);
+        await Swapper.swap(ethers.constants.AddressZero, pool.entryToken, val, userAddress, {gasLimit: 2000000, value: val})
+        entryBalance = await EntryToken.balanceOf(userAddress);
+    }
 
-    await Swapper.swap(ethers.constants.AddressZero, pool.entryToken, val, userAddress, {value: val, gasLimit: 300000})
+    console.log(`Investing ${ethers.utils.formatUnits(entryBalance, entryDecimals)} of entryAsset`)
 
-    // if (entryBalance.eq(BigNumber.from("0"))) {
-    //     console.log("need to buy entryAsset")
-    //     const balance = ethers.provider.getBalance(userAddress);
-    //     await Swapper.swap(ethers.constants.AddressZero, pool.entryToken, (await balance).div(5), userAddress, {gasLimit: 2000000})
-    //     entryBalance = await EntryToken.balanceOf(userAddress);
-    // }
+    const defaultRouter = await Swapper.defaultRouter();
+    const routerType = await Swapper.routerTypes(defaultRouter);
+    console.log(EntryToken.address, "EntryToken");
 
-    // console.log(`Investing ${ethers.utils.formatUnits(entryBalance, entryDecimals)} of entryAsset`)
+    console.log(defaultRouter, "defaultRouter");
+    console.log(routerType, "routerType")
 
-    // const defaultRouter = await Swapper.defaultRouter();
-    // const routerType = await Swapper.routerTypes(defaultRouter);
-    // console.log(EntryToken.address, "EntryToken");
+    const tx = await EntryToken.connect(user).approve(Pool.address, entryBalance, {gasLimit: 2000000})
+    await tx.wait(2);
+    await sleep(30000)
+    await Pool.connect(user).invest(userAddress, entryBalance)
 
-    // console.log(defaultRouter, "defaultRouter");
-    // console.log(routerType, "routerType")
+    const lpBalance = await PoolStorage.balanceOf(userAddress)
+    console.log("LP Balance: ", ethers.utils.formatUnits(lpBalance, entryDecimals));
 
-    // //const tx = await EntryToken.connect(user).approve(Pool.address, entryBalance, {gasLimit: 2000000})
-    // //await tx.wait(2);
-    // await Pool.connect(user).invest(userAddress, entryBalance)
+    const totalValue = await Pool.callStatic.totalValue();
+    console.log(`Total value of pool: ${ethers.utils.formatUnits(totalValue, entryDecimals)} ${entrySymbol}`)
+}
 
-    // const lpBalance = await PoolStorage.balanceOf(userAddress)
-    // console.log("LP Balance: ", ethers.utils.formatUnits(lpBalance, entryDecimals));
-
-    // const totalValue = await Pool.callStatic.totalValue();
-    // console.log(`Total value of pool: ${ethers.utils.formatUnits(totalValue, entryDecimals)} ${entrySymbol}`)
+function sleep(ms: number) {
+    console.log(`Waiting ${ms / 1000} seconds`)
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 if (require.main === module) {

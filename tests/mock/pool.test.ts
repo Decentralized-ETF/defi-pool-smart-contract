@@ -116,8 +116,7 @@ describe('Pool Contract', () => {
         })
 
         it('Check default assets weights', async function () {
-            const defaultWeights = parseInt((100/tokens.length).toFixed(0)) * tokens.length
-            expect(defaultWeights).to.equal(await pool.weightsSum())
+            expect(deployer.WEIGHT_SUM).to.equal(await pool.weightsSum())
         })
 
         describe('Invest & Withdraw', async function () {

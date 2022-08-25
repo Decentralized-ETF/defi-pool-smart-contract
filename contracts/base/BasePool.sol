@@ -127,12 +127,17 @@ abstract contract BasePool is IPool, ReentrancyGuard {
      */
     function withdraw(uint256 _amount) public virtual override {}
 
+    /**
+     * @dev must be implemented in inherited classes
+     */
+    function withdrawAll() public virtual override {}
+
     function _assetBalance(address _asset) internal view returns (uint256) {
         return _asset == address(0) ? address(this).balance : IERC20(_asset).balanceOf(address(this));
     }
 
-    function _calcualteSuccessFee(uint256 _amount) internal view returns(uint256) {
-        return (_amount  * poolDetails.successFee) / KedrConstants._FEE_DENOMINATOR;
+    function _calcualteSuccessFee(uint256 _amount) internal view returns (uint256) {
+        return (_amount * poolDetails.successFee) / KedrConstants._FEE_DENOMINATOR;
     }
 
     function _weightsSum(uint24[] memory weights) internal pure returns (uint24 sum) {

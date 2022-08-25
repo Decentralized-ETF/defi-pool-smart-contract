@@ -40,20 +40,13 @@ contract Pool is BasePool {
                 uint256 entryAmount = (invested * weights[i]) / weightsSum;
                 uint256 currentBalance = _assetBalance(entryAsset);
                 uint256 adjustedAmount = currentBalance < entryAmount ? currentBalance : entryAmount;
-                require(Swapper.swap(entryAsset, assets[i], adjustedAmount, address(this)) != 0, "NO_TOKENS_RECEIVED");
+                require(Swapper.swap(entryAsset, assets[i], adjustedAmount, address(this)) != 0, 'NO_TOKENS_RECEIVED');
             }
         }
 
         uint256 valueAdded = totalValue() - totalValueBefore; // we need to use "valueAdded" instead "invested" to exclude swap fee losses from calculating
         uint256 shares = PoolStorage.calculateSharesBySpecificPrice(valueAdded, sharePrice);
-        PoolStorage.recordInvestment(
-            investor,
-            shares,
-            sharePrice,
-            invested,
-            entryFee,
-            invested - valueAdded
-        );
+        PoolStorage.recordInvestment(investor, shares, sharePrice, invested, entryFee, invested - valueAdded);
     }
 
     /**
@@ -95,6 +88,11 @@ contract Pool is BasePool {
             TransferHelper.safeTransfer(entryAsset, feeReceiver, successFee);
         }
         PoolStorage.recordWithdrawal(msg.sender, _shares, sharePrice, withdrawAmount, successFee, swapFeesLoss);
+    }
+
+    function withdrawAll() public override {
+        uint256 shares = PoolStorage.balanceOf(msg.sender);
+        withdraw(shares);
     }
 
     function _sellToExactAmount(

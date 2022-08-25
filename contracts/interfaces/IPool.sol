@@ -40,6 +40,8 @@ interface IPool {
 
     function withdraw(uint256 amount) external;
 
+    function withdrawAll() external;
+
     function setWeight(address asset, uint24 weight) external; // updates allocation for specific token in pool
 
     function updateAllocations(uint24[] memory weights) external; // updates allocations for all tokens in pool

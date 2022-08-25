@@ -69,7 +69,7 @@ contract Swapper is ISwapper {
         } else {
             revert('UNSUPPORTED_ROUTER_TYPE');
         }
-        return isNativeOut? address(_recipient).balance - balanceBefore : IERC20(_tokenOut).balanceOf(_recipient) - balanceBefore;
+        return isNativeOut ? address(_recipient).balance - balanceBefore : IERC20(_tokenOut).balanceOf(_recipient) - balanceBefore;
     }
 
     function getAmountOut(

@@ -77,7 +77,10 @@ contract Factory is Ownable, ReentrancyGuard {
         string memory entrySymbol = IERC20Metadata(_entryAsset).symbol();
         bytes memory symbol = abi.encodePacked('k', entrySymbol);
         bytes memory name = abi.encodePacked('KEDR_', entrySymbol);
-        bytes memory storageBytecode = abi.encodePacked(type(PoolStorage).creationCode, abi.encode(id, _entryAsset, defaultFeeReceiver, symbol, name));
+        bytes memory storageBytecode = abi.encodePacked(
+            type(PoolStorage).creationCode,
+            abi.encode(id, _entryAsset, defaultFeeReceiver, symbol, name)
+        );
         poolStorage = KedrLib.deploy(storageBytecode);
         poolStorages.push(poolStorage);
         emit PoolStorageCreated(poolStorage, id);
@@ -106,7 +109,11 @@ contract Factory is Ownable, ReentrancyGuard {
         IPool(_pool).updateAllocations(_weights);
     }
 
-    function setWeight(address _pool, address asset, uint24 weight) external onlyOwner {
+    function setWeight(
+        address _pool,
+        address asset,
+        uint24 weight
+    ) external onlyOwner {
         IPool(_pool).setWeight(asset, weight);
     }
 }

@@ -33,5 +33,6 @@ interface IPoolStorage {
     function feeReceiver() external returns (address);
 
     function setFeeReceiver(address feeReceiver) external;
-    
+
+    function balanceOf(address account) external view returns (uint256);
 }

@@ -3,10 +3,13 @@ import { poolParams, ROUTERS, TEST_ROUTERS, TOKENS } from '../config'
 import { PoolDetails, Routers, TestRouter, Token, PoolConfig } from '../interfaces'
 import { Factory, MockToken, MockWeth, Swapper } from '../../typechain'
 import { saveJSON } from '../utils'
-import { Contract } from 'ethers'
+import { BigNumber, Contract } from 'ethers'
 
 export class Deployer {
-    constructor() {}
+    WEIGHT_SUM: BigNumber;
+    constructor() {
+        this.WEIGHT_SUM = BigNumber.from(1000000)
+    }
 
     async deployOnChain(verify: boolean = false) {
         const [governance] = await ethers.getSigners()
@@ -91,7 +94,7 @@ export class Deployer {
             successFee: poolParams.successFee,
             entryFee: poolParams.entryFee,
             assets: tokens,
-            weights: new Array(tokens.length).fill((100 / tokens.length).toFixed(0).toString()),
+            weights: new Array(tokens.length).fill((this.WEIGHT_SUM.div(tokens.length))), // similar weights
             minInvestment: poolParams.minInvestment,
             balanceable: true
         }
