@@ -16,7 +16,7 @@ export async function loadPools(): Promise<SavedPool[]> {
     if (fs.existsSync(path)) {
         return JSON.parse(fs.readFileSync(path).toString())
     } else {
-        throw Error(`pools.json file does not exists`)
+        return [];
     }
 }
 

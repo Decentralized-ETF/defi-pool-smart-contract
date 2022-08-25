@@ -41,6 +41,8 @@ export interface SavedPool {
     poolId: string
     pool: string
     entryToken: string
+    symbol: string
+    name: string
 }
 
 export interface SavedCore {

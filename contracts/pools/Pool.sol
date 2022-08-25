@@ -101,9 +101,10 @@ contract Pool is BasePool {
         uint256 _amountOut
     ) internal returns (uint256 received) {
         uint256 amountIn = Swapper.getAmountIn(_tokenIn, _tokenOut, _amountOut);
-        require(_assetBalance(_tokenIn) >= amountIn, 'INSUFFIENT_FUNDS');
-        TransferHelper.safeApprove(_tokenIn, address(Swapper), amountIn);
-        received = Swapper.swap(_tokenIn, _tokenOut, amountIn, address(this));
+        uint256 actualBalance = _assetBalance(_tokenIn);
+        uint256 amount = actualBalance < amountIn ? actualBalance : amountIn; 
+        TransferHelper.safeApprove(_tokenIn, address(Swapper), amount);
+        received = Swapper.swap(_tokenIn, _tokenOut, amount, address(this));
     }
 
     function _checkInaccuracy(uint256 expectedValue, uint256 realValue) internal pure {
