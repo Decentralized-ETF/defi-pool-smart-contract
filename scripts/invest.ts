@@ -3,6 +3,7 @@ import { loadCore, loadPools } from './utils'
 import { Pool, Factory, PoolStorage, Swapper, ERC20 } from '../typechain'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { BigNumber } from 'ethers'
+import {Deployer} from "./classes/Deployer"
 
 async function invest() {
     const [user] = await ethers.getSigners()
@@ -32,8 +33,10 @@ async function invest() {
 
     console.log(`Initial value of pool: ${ethers.utils.formatUnits(initialTotalValue, entryDecimals)} ${entrySymbol}`)
 
-    const balance = ethers.provider.getBalance(userAddress)
-    await Swapper.swap(ethers.constants.AddressZero, pool.entryToken, (await balance).div(5), userAddress, { gasLimit: 2000000 })
+    const balance = await ethers.provider.getBalance(userAddress)
+    const val = balance.div(10);
+
+    await Swapper.swap(ethers.constants.AddressZero, pool.entryToken, val, userAddress, {value: val, gasLimit: 300000})
 
     // if (entryBalance.eq(BigNumber.from("0"))) {
     //     console.log("need to buy entryAsset")

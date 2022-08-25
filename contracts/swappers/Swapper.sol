@@ -46,7 +46,7 @@ contract Swapper is ISwapper {
         address _tokenOut,
         uint256 _amount,
         address _recipient
-    ) external override returns (uint256) {
+    ) external payable override returns (uint256) {
         require(_amount > 0, 'ZERO_AMOUNT');
         (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
         bool isNativeIn = KedrLib.isNative(_tokenIn);
@@ -56,10 +56,9 @@ contract Swapper is ISwapper {
         if (!isNativeIn) {
             TransferHelper.safeTransferFrom(_tokenIn, msg.sender, address(this), _amount);
             TransferHelper.safeApprove(_tokenIn, router, _amount);
-            balanceBefore = IERC20(_tokenOut).balanceOf(_recipient);
-        } else {
-            balanceBefore = address(_recipient).balance;
         }
+
+        balanceBefore = isNativeOut ? address(_recipient).balance : IERC20(_tokenOut).balanceOf(_recipient);
 
         if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
             _balancerSwap(router, _tokenIn, _tokenOut, _amount, _recipient);
@@ -70,7 +69,7 @@ contract Swapper is ISwapper {
         } else {
             revert('UNSUPPORTED_ROUTER_TYPE');
         }
-        return IERC20(_tokenOut).balanceOf(_recipient) - balanceBefore;
+        return isNativeOut? address(_recipient).balance - balanceBefore : IERC20(_tokenOut).balanceOf(_recipient) - balanceBefore;
     }
 
     function getAmountOut(

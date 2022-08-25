@@ -19,11 +19,11 @@ export class Deployer {
         const defaultRouter = routers.find((val) => val.isDefault)?.address || routers[0].address
 
         const Swapper = await this.deploy('Swapper', [routerAddresses, routerTypes, defaultRouter, ethers.constants.AddressZero], verify) as Swapper;
-        const Factory = await this.deploy('Factory', [governance.address, Swapper.address], verify) as Factory;
+        // const Factory = await this.deploy('Factory', [governance.address, Swapper.address], verify) as Factory;
 
-        await this.createPool(Factory, Swapper.address, TOKENS, '') // create default pool
-        await saveJSON({swapper: Swapper.address, factory: Factory.address}, "core");
-        return { swapper: Swapper, factory: Factory, defaultRouter }
+        // await this.createPool(Factory, Swapper.address, TOKENS, '') // create default pool
+        // await saveJSON({swapper: Swapper.address, factory: Factory.address}, "core");
+        // return { swapper: Swapper, factory: Factory, defaultRouter }
     }
 
     async deployTestContracts(routerType: number, _routers: TestRouter[] = TEST_ROUTERS) {
@@ -102,6 +102,7 @@ export class Deployer {
         if (_test) {
             const poolInfo = await Factory.callStatic.create(poolDetails, entryAsset)
             await Factory.create(poolDetails, entryAsset)
+
             console.log(`Pool created on address: ${poolInfo} with params:\nEntry asset: ${entryAsset}\nTokens: ${filteredTokens.map(token => token.name)}`)
             return poolInfo
         }

@@ -7,7 +7,7 @@ interface ISwapper {
         address _tokenOut,
         uint256 _amount,
         address _recipient
-    ) external returns (uint256);
+    ) external payable returns (uint256);
 
     function getAmountOut(
         address _tokenIn,

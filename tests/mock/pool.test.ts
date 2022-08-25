@@ -174,9 +174,25 @@ describe('Pool Contract', () => {
                 expect(await poolStorage.totalEntryFeeCollected()).to.equal(fee.add(totalEntryFeeCollectedBefore))
             })
 
-            it('Withdraw', async function () {
-                const poolDetails = await pool.poolDetails()
+            it('Withdraw partly', async function () {
+                const totalWithdrawnEntryAssetBefore = await poolStorage.totalWithdrawnEntryAsset()
+                const totalSuccessFeeCollectedBefore = await poolStorage.totalSuccessFeeCollected()
+                const entryTokenBalanceBefore = await tokenA.balanceOf(investor)
+                const kTokenBalance = await poolStorage.balanceOf(investor)
 
+                await pool.connect(investorAcc).withdraw(kTokenBalance.div(2))
+
+                const totalWithdrawnEntryAssetAfter = await poolStorage.totalWithdrawnEntryAsset()
+                const totalSuccessFeeCollectedAfter = await poolStorage.totalSuccessFeeCollected()
+                const entryTokenBalanceAfter = await tokenA.balanceOf(investor)
+
+                expect(totalWithdrawnEntryAssetAfter).gt(totalWithdrawnEntryAssetBefore)
+                expect(totalSuccessFeeCollectedAfter).gt(totalSuccessFeeCollectedBefore)
+                expect(await poolStorage.balanceOf(investor)).gt(0)
+                expect(entryTokenBalanceAfter).gt(entryTokenBalanceBefore) // todo: think how to enable exact checking with swapFees conditions
+            })
+
+            it('Withdraw all', async function () {
                 const totalWithdrawnEntryAssetBefore = await poolStorage.totalWithdrawnEntryAsset()
                 const totalSuccessFeeCollectedBefore = await poolStorage.totalSuccessFeeCollected()
                 const entryTokenBalanceBefore = await tokenA.balanceOf(investor)
@@ -313,14 +329,33 @@ describe('Pool Contract', () => {
                 expect(await poolStorage.totalEntryFeeCollected()).to.equal(fee.add(totalEntryFeeCollectedBefore))
             })
 
-            it('Withdraw', async function () {
+            it('Withdraw partly', async function () {
                 const poolDetails = await pool.poolDetails()
 
                 const totalWithdrawnEntryAssetBefore = await poolStorage.totalWithdrawnEntryAsset()
                 const totalSuccessFeeCollectedBefore = await poolStorage.totalSuccessFeeCollected()
                 const entryTokenBalanceBefore = await tokenA.balanceOf(investor)
                 const kTokenBalance = await poolStorage.balanceOf(investor)
-                const calculatedWithDrawAmount = await poolStorage.callStatic.calculateEntryAmount(kTokenBalance)
+
+                await pool.connect(investorAcc).withdraw(kTokenBalance.div(2))
+
+                const totalWithdrawnEntryAssetAfter = await poolStorage.totalWithdrawnEntryAsset()
+                const totalSuccessFeeCollectedAfter = await poolStorage.totalSuccessFeeCollected()
+                const entryTokenBalanceAfter = await tokenA.balanceOf(investor)
+
+                expect(totalWithdrawnEntryAssetAfter).gt(totalWithdrawnEntryAssetBefore)
+                expect(totalSuccessFeeCollectedAfter).gt(totalSuccessFeeCollectedBefore)
+                expect(await poolStorage.balanceOf(investor)).gt(0)
+                expect(entryTokenBalanceAfter).gt(entryTokenBalanceBefore)
+            })
+
+            it('Withdraw all', async function () {
+                const poolDetails = await pool.poolDetails()
+
+                const totalWithdrawnEntryAssetBefore = await poolStorage.totalWithdrawnEntryAsset()
+                const totalSuccessFeeCollectedBefore = await poolStorage.totalSuccessFeeCollected()
+                const entryTokenBalanceBefore = await tokenA.balanceOf(investor)
+                const kTokenBalance = await poolStorage.balanceOf(investor)
 
                 await pool.connect(investorAcc).withdraw(kTokenBalance)
 
