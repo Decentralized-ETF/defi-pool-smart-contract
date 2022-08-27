@@ -122,7 +122,8 @@ export class Deployer {
         }
         await Factory.create(poolDetails, entryAsset)
         console.log(`Pool creation tx is sended`)
-        while (true) {
+
+        while (true && !_test) {
             await sleep(10)
             const count = await Factory.poolsCount()
             if (count.gt(poolsCountBefore) || +poolsCountBefore > 0) {

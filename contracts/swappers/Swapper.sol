@@ -8,13 +8,16 @@ import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol';
 import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '../interfaces/ISwapper.sol';
 import '../libraries/KedrConstants.sol';
 import '../libraries/KedrLib.sol';
 
-contract Swapper is ISwapper {
+contract Swapper is ISwapper, Ownable {
     mapping(address => uint8) public routerTypes; // router to ROUTER_TYPE
+    mapping(address => mapping(address => mapping(address => address[]))) internal conversionPaths; // router => from => to => path
+    mapping(address => mapping(address => mapping(address => bytes))) internal bytesConvestionPaths;
     address[] internal routers; // list of supported routers
     address[] internal routeTokens; // list of tokens to build composite routes if there is no direct pair
     address public defaultRouter; // default router to be used when don't want to spend gas to find best router
@@ -128,6 +131,11 @@ contract Swapper is ISwapper {
         address tokenIn,
         address tokenOut
     ) internal view returns (address[] memory route) {
+        route = conversionPaths[router][tokenIn][tokenOut];
+        if (route.length != 0) {
+            return route;
+        }
+
         if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
             route = _getBalancerRoute(router, tokenIn, tokenOut);
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
@@ -144,6 +152,11 @@ contract Swapper is ISwapper {
         address tokenIn,
         address tokenOut
     ) internal view returns (bytes memory route) {
+        route = bytesConvestionPaths[router][tokenIn][tokenOut];
+        if (route.length != 0) {
+            return route;
+        }
+
         if (routerType == KedrConstants._ROUTER_TYPE_V3) {
             route = _getV3Route(router, tokenIn, tokenOut);
         } else {
@@ -308,5 +321,25 @@ contract Swapper is ISwapper {
         address _recipient
     ) internal {
         // future work
+    }
+
+    function setConversionPath(
+        address _router,
+        address _from,
+        address _to,
+        address[] memory _path
+    ) public onlyOwner {
+        require(_from == _path[0], 'The first token of path must be _from');
+        require(_to == _path[_path.length - 1], 'The last token of path must be _to');
+        conversionPaths[_router][_from][_to] = _path;
+    }
+
+    function setBytesConversionPath(
+        address _router,
+        address _from,
+        address _to,
+        bytes memory _path
+    ) public onlyOwner {
+        bytesConvestionPaths[_router][_from][_to] = _path;
     }
 }

@@ -368,5 +368,50 @@ describe('Pool Contract', () => {
                 expect(entryTokenBalanceAfter).gt(entryTokenBalanceBefore)
             })
         })
+
+        describe('Entry asset is native', async function () {
+            let balanceABefore: BigNumber, balanceABeforeGov: BigNumber, balanceKBefore: BigNumber, poolValueAfterFirstInvest: BigNumber
+            let balanceAAfter: BigNumber, balanceAAfterGov: BigNumber, balanceKAfter: BigNumber, sharePrice: BigNumber
+
+            before(async function () {
+
+                tokens = [
+                    {name: "USDC", network: hre.network.name, address: tokenB.address},
+                    {name: "Bitcoin", network: hre.network.name, address: tokenC.address},
+                ]
+
+                const entryAsset = ethers.constants.AddressZero;
+                // @ts-ignore
+                poolInfo = await deployer.createPool(contracts.factory, contracts.swapper.address, tokens, entryAsset, true);
+                poolAddress = poolInfo[0]
+                poolStorageAddress = poolInfo[1]
+                pool = await ethers.getContractAt("Pool", poolAddress);
+                poolStorage = await ethers.getContractAt("PoolStorage", poolStorageAddress);
+                expect(await contracts.factory.poolsCount()).to.equal(3)
+
+                balanceABefore = await tokenA.balanceOf(investor)
+                balanceABeforeGov = await tokenA.balanceOf(governance)
+                balanceKBefore = await poolStorage.balanceOf(investor)
+                sharePrice = await poolStorage.callStatic.sharePrice(); // callStatic because of UniswapV3 Quoter...
+
+                await pool.connect(investorAcc).invest(investor, entryAmountToInvest, {value: entryAmountToInvest})
+
+                balanceAAfter = await tokenA.balanceOf(investor)
+                balanceAAfterGov = await tokenA.balanceOf(governance)
+                balanceKAfter = await poolStorage.balanceOf(investor)
+            })
+
+            it('First invest.', async function () {
+                expect(balanceAAfter).to.equal(balanceABefore.sub(entryAmountToInvest))
+                expect(balanceAAfterGov).to.equal(balanceABeforeGov.add(fee))
+                poolValueAfterFirstInvest = await pool.callStatic.totalValue();
+                const expectedShares = await poolStorage.calculateSharesBySpecificPrice(poolValueAfterFirstInvest, sharePrice)
+                expect(balanceKAfter).to.equal(balanceKBefore.add(expectedShares))
+                
+                //check poolStorage
+                expect(await poolStorage.totalReceivedEntryAsset()).to.equal(investedAmount)
+                expect(await poolStorage.totalEntryFeeCollected()).to.equal(fee)
+            })
+        })
     })
 })
