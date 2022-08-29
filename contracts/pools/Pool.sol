@@ -13,34 +13,44 @@ contract Pool is BasePool {
         address entryAsset = PoolStorage.entryAsset();
         bool isNative = KedrLib.isNative(entryAsset);
         require(amount >= poolDetails.minInvestment, 'TOO_SMALL_INVESTMENT');
+        uint256 totalValueBefore;
+        if (isNative) {
+            amount = msg.value;
+            totalValueBefore = totalValue() - amount; // we deduct amount because msg.value already included in pool balance
+        } else {
+            totalValueBefore = totalValue();
+        }
         uint256 entryFee = (amount * poolDetails.entryFee) / KedrConstants._FEE_DENOMINATOR;
         uint256 invested = amount - entryFee;
-        uint256 sharePrice = PoolStorage.sharePrice();
-        uint256 totalValueBefore = totalValue();
-
-        KedrLib.uniTransferFrom(entryAsset, msg.sender, address(this), amount);
-
-        // transfer fee from user to feeReceiver
+        uint256 sharePrice = PoolStorage.calculateSharePrice(totalValueBefore);
         address feeReceiver = PoolStorage.feeReceiver();
-        if (entryFee > 0) {
-            KedrLib.uniTransfer(entryAsset, feeReceiver, entryFee);
+
+        if (!isNative) {
+            TransferHelper.safeTransferFrom(entryAsset, msg.sender, address(this), invested);
+            if (entryFee > 0) {
+                TransferHelper.safeTransferFrom(entryAsset, msg.sender, feeReceiver, entryFee);
+            }
+            TransferHelper.safeApprove(entryAsset, address(Swapper), invested);
+        } else {
+            if (entryFee > 0) {
+                TransferHelper.safeTransferETH(feeReceiver, entryFee);
+            }
+            //TransferHelper.safeTransferETH(address(Swapper), invested/2);
         }
 
         address[] memory assets = poolDetails.assets;
         uint24[] memory weights = poolDetails.weights;
-
-        if (!isNative) {
-            TransferHelper.safeApprove(entryAsset, address(Swapper), invested);
-        } else {
-            TransferHelper.safeTransferETH(address(Swapper), invested);
-        }
 
         for (uint256 i; i < assets.length; ++i) {
             if (assets[i] != entryAsset) {
                 uint256 entryAmount = (invested * weights[i]) / weightsSum;
                 uint256 currentBalance = _assetBalance(entryAsset);
                 uint256 adjustedAmount = currentBalance < entryAmount ? currentBalance : entryAmount;
-                require(Swapper.swap(entryAsset, assets[i], adjustedAmount, address(this)) != 0, 'NO_TOKENS_RECEIVED');
+                if (isNative) {
+                    require(Swapper.swap{value: adjustedAmount}(entryAsset, assets[i], adjustedAmount, address(this)) != 0, 'NO_TOKENS_RECEIVED');
+                } else {
+                    require(Swapper.swap(entryAsset, assets[i], adjustedAmount, address(this)) != 0, 'NO_TOKENS_RECEIVED');
+                }
             }
         }
 
@@ -102,7 +112,7 @@ contract Pool is BasePool {
     ) internal returns (uint256 received) {
         uint256 amountIn = Swapper.getAmountIn(_tokenIn, _tokenOut, _amountOut);
         uint256 actualBalance = _assetBalance(_tokenIn);
-        uint256 amount = actualBalance < amountIn ? actualBalance : amountIn; 
+        uint256 amount = actualBalance < amountIn ? actualBalance : amountIn;
         TransferHelper.safeApprove(_tokenIn, address(Swapper), amount);
         received = Swapper.swap(_tokenIn, _tokenOut, amount, address(this));
     }

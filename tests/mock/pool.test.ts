@@ -35,11 +35,11 @@ describe('Pool Contract', () => {
     let poolInfo: string[];
     let pool: Pool;
     let poolStorage: PoolStorage;
-    let entryAmountToInvest: BigNumber = ethers.utils.parseEther(poolParams.minInvestment)
+    let entryAmountToInvest: BigNumber = BigNumber.from(poolParams.minInvestment).mul(1000000000000000);
     let entryAmountToMint: BigNumber = ethers.utils.parseEther((parseInt(poolParams.minInvestment) * 100).toString())
     let tokenA: MockToken, tokenB: MockToken, tokenC: MockToken
-    let amountToAddLiquidityUSD: BigNumber = ethers.utils.parseEther(poolParams.minInvestment).mul(10)
-    let amountToAddLiquidityBTC: BigNumber = ethers.utils.parseEther(poolParams.minInvestment).mul(10)
+    let amountToAddLiquidityUSD: BigNumber = entryAmountToInvest.mul(10)
+    let amountToAddLiquidityBTC: BigNumber = entryAmountToInvest.mul(10)
     const denominator = 10000 // as in KedrConstants contract
     const fee = entryAmountToInvest.mul(poolParams.entryFee).div(denominator)
     const investedAmount = entryAmountToInvest.sub(entryAmountToInvest.mul(poolParams.entryFee).div(denominator))
@@ -98,7 +98,9 @@ describe('Pool Contract', () => {
             const deadline = (await ethers.provider.getBlock("latest")).timestamp + 1000000
             await contracts.router.addLiquidity(tokenA.address, tokenB.address, amountToAddLiquidityUSD, amountToAddLiquidityBTC, 0, 0, governance, deadline)
             await contracts.router.addLiquidity(tokenA.address, tokenC.address, amountToAddLiquidityUSD, amountToAddLiquidityBTC, 0, 0, governance, deadline)
-
+            await contracts.router.addLiquidityETH(tokenA.address, amountToAddLiquidityBTC, 0, 0, governance, deadline, {value: amountToAddLiquidityUSD})
+            await contracts.router.addLiquidityETH(tokenB.address, amountToAddLiquidityBTC, 0, 0, governance, deadline, {value: amountToAddLiquidityUSD})
+            await contracts.router.addLiquidityETH(tokenC.address, amountToAddLiquidityBTC, 0, 0, governance, deadline, {value: amountToAddLiquidityUSD})
         })
 
         it('Check additional pool creation via factory', async function () {
@@ -369,40 +371,39 @@ describe('Pool Contract', () => {
             })
         })
 
-        describe('Entry asset is native', async function () {
+        describe('Entry asset is native && native as pool asset', async function () {
             let balanceABefore: BigNumber, balanceABeforeGov: BigNumber, balanceKBefore: BigNumber, poolValueAfterFirstInvest: BigNumber
             let balanceAAfter: BigNumber, balanceAAfterGov: BigNumber, balanceKAfter: BigNumber, sharePrice: BigNumber
 
             before(async function () {
+                const entryAsset = ethers.constants.AddressZero;
 
                 tokens = [
                     {name: "USDC", network: hre.network.name, address: tokenB.address},
                     {name: "Bitcoin", network: hre.network.name, address: tokenC.address},
+                    {name: "NATIVE", network: hre.network.name, address: entryAsset}
                 ]
-
-                const entryAsset = ethers.constants.AddressZero;
                 // @ts-ignore
                 poolInfo = await deployer.createPool(contracts.factory, contracts.swapper.address, tokens, entryAsset, true);
                 poolAddress = poolInfo[0]
                 poolStorageAddress = poolInfo[1]
                 pool = await ethers.getContractAt("Pool", poolAddress);
                 poolStorage = await ethers.getContractAt("PoolStorage", poolStorageAddress);
-                expect(await contracts.factory.poolsCount()).to.equal(3)
 
-                balanceABefore = await tokenA.balanceOf(investor)
-                balanceABeforeGov = await tokenA.balanceOf(governance)
+                balanceABefore = await ethers.provider.getBalance(investor)
+                balanceABeforeGov = await ethers.provider.getBalance(governance)
                 balanceKBefore = await poolStorage.balanceOf(investor)
+
                 sharePrice = await poolStorage.callStatic.sharePrice(); // callStatic because of UniswapV3 Quoter...
-
                 await pool.connect(investorAcc).invest(investor, entryAmountToInvest, {value: entryAmountToInvest})
-
-                balanceAAfter = await tokenA.balanceOf(investor)
-                balanceAAfterGov = await tokenA.balanceOf(governance)
+                
+                balanceAAfter = await ethers.provider.getBalance(investor)
+                balanceAAfterGov = await ethers.provider.getBalance(governance)
                 balanceKAfter = await poolStorage.balanceOf(investor)
             })
 
-            it('First invest.', async function () {
-                expect(balanceAAfter).to.equal(balanceABefore.sub(entryAmountToInvest))
+            it('First invest native', async function () {
+                expect(balanceAAfter).lt(balanceABefore.sub(entryAmountToInvest))
                 expect(balanceAAfterGov).to.equal(balanceABeforeGov.add(fee))
                 poolValueAfterFirstInvest = await pool.callStatic.totalValue();
                 const expectedShares = await poolStorage.calculateSharesBySpecificPrice(poolValueAfterFirstInvest, sharePrice)
@@ -411,6 +412,74 @@ describe('Pool Contract', () => {
                 //check poolStorage
                 expect(await poolStorage.totalReceivedEntryAsset()).to.equal(investedAmount)
                 expect(await poolStorage.totalEntryFeeCollected()).to.equal(fee)
+            })
+
+            it('Second Native Invest from other account', async function () {
+                const totalReceivedEntryAssetBefore = await poolStorage.totalReceivedEntryAsset()
+                const totalEntryFeeCollectedBefore = await poolStorage.totalEntryFeeCollected()
+
+                balanceABefore = await ethers.provider.getBalance(investor2)
+                balanceABeforeGov = await ethers.provider.getBalance(governance)
+                balanceKBefore = await poolStorage.balanceOf(investor2)
+
+                const sharePrice2 = await poolStorage.callStatic.sharePrice(); 
+
+                await pool.connect(investor2Acc).invest(investor2, entryAmountToInvest, {value: entryAmountToInvest})
+
+                const secondInvestAmount = (await pool.callStatic.totalValue()).sub(poolValueAfterFirstInvest);
+                const calculatedKTokens = await poolStorage.callStatic.calculateSharesBySpecificPrice(secondInvestAmount, sharePrice2);
+
+                balanceAAfter = await ethers.provider.getBalance(investor2)
+                balanceAAfterGov = await ethers.provider.getBalance(governance)
+                balanceKAfter = await poolStorage.balanceOf(investor2)
+
+                expect(balanceAAfter).lt(balanceABefore.sub(entryAmountToInvest))
+                expect(balanceAAfterGov).to.equal(balanceABeforeGov.add(fee))
+                expect(balanceKAfter).to.equal(balanceKBefore.add(calculatedKTokens))
+
+                //check poolStorage
+                expect(await poolStorage.totalReceivedEntryAsset()).to.equal(investedAmount.add(totalReceivedEntryAssetBefore))
+                expect(await poolStorage.totalEntryFeeCollected()).to.equal(fee.add(totalEntryFeeCollectedBefore))
+            })
+
+            it('Withdraw partly', async function () {
+                const poolDetails = await pool.poolDetails()
+
+                const totalWithdrawnEntryAssetBefore = await poolStorage.totalWithdrawnEntryAsset()
+                const totalSuccessFeeCollectedBefore = await poolStorage.totalSuccessFeeCollected()
+                const entryTokenBalanceBefore = await ethers.provider.getBalance(investor)
+                const kTokenBalance = await poolStorage.balanceOf(investor)
+
+                await pool.connect(investorAcc).withdraw(kTokenBalance.div(2))
+
+                const totalWithdrawnEntryAssetAfter = await poolStorage.totalWithdrawnEntryAsset()
+                const totalSuccessFeeCollectedAfter = await poolStorage.totalSuccessFeeCollected()
+                const entryTokenBalanceAfter = await ethers.provider.getBalance(investor)
+
+                expect(totalWithdrawnEntryAssetAfter).gt(totalWithdrawnEntryAssetBefore)
+                expect(totalSuccessFeeCollectedAfter).gt(totalSuccessFeeCollectedBefore)
+                expect(await poolStorage.balanceOf(investor)).gt(0)
+                expect(entryTokenBalanceAfter).gt(entryTokenBalanceBefore)
+            })
+
+            it('Withdraw all', async function () {
+                const poolDetails = await pool.poolDetails()
+
+                const totalWithdrawnEntryAssetBefore = await poolStorage.totalWithdrawnEntryAsset()
+                const totalSuccessFeeCollectedBefore = await poolStorage.totalSuccessFeeCollected()
+                const entryTokenBalanceBefore = await ethers.provider.getBalance(investor)
+                const kTokenBalance = await poolStorage.balanceOf(investor)
+
+                await pool.connect(investorAcc).withdraw(kTokenBalance)
+
+                const totalWithdrawnEntryAssetAfter = await poolStorage.totalWithdrawnEntryAsset()
+                const totalSuccessFeeCollectedAfter = await poolStorage.totalSuccessFeeCollected()
+                const entryTokenBalanceAfter = await ethers.provider.getBalance(investor)
+
+                expect(totalWithdrawnEntryAssetAfter).gt(totalWithdrawnEntryAssetBefore)
+                expect(totalSuccessFeeCollectedAfter).gt(totalSuccessFeeCollectedBefore)
+                expect(await poolStorage.balanceOf(investor)).to.equal(0)
+                expect(entryTokenBalanceAfter).gt(entryTokenBalanceBefore)
             })
         })
     })

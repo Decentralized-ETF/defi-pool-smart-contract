@@ -50,10 +50,14 @@ contract Swapper is ISwapper, Ownable {
         uint256 _amount,
         address _recipient
     ) external payable override returns (uint256) {
-        require(_amount > 0, 'ZERO_AMOUNT');
         (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
         bool isNativeIn = KedrLib.isNative(_tokenIn);
         bool isNativeOut = KedrLib.isNative(_tokenOut);
+        if (isNativeIn) {
+            _amount = msg.value;
+        }
+
+        require(_amount > 0, 'ZERO_AMOUNT');
 
         uint256 balanceBefore;
         if (!isNativeIn) {

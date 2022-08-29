@@ -60,7 +60,7 @@ contract PoolStorage is ERC20 {
         string memory _symbol
     ) ERC20(_name, _symbol) {
         poolStorageId = _poolStorageId;
-        require(_feeReceiver != address(0) && _entryAsset != address(0), 'ZERO_ADDRESS');
+        require(_feeReceiver != address(0), 'ZERO_ADDRESS');
         factory = msg.sender;
         feeReceiver = _feeReceiver;
         entryAsset = _entryAsset;
@@ -116,6 +116,14 @@ contract PoolStorage is ERC20 {
         }
         uint256 totalValue = Pool.totalValue();
         return (totalValue * NUMERATOR) / _totalSupply; // check: maybe need to add multiplier here, not sure
+    }
+
+    function calculateSharePrice(uint256 totalValue) public view returns (uint256) {
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0 || totalValue == 0) {
+            return NUMERATOR; // initial price
+        }
+        return (totalValue * NUMERATOR) / _totalSupply;
     }
 
     function calculateShares(uint256 _entryAmount) public returns (uint256) {

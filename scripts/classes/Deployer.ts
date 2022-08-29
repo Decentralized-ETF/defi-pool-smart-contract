@@ -111,6 +111,7 @@ export class Deployer {
         const poolsCountBefore = await Factory.poolsCount()
         if (_test) {
             const poolInfo = await Factory.callStatic.create(poolDetails, entryAsset)
+
             await Factory.create(poolDetails, entryAsset)
 
             console.log(
