@@ -1,12 +1,16 @@
 import hre, { ethers } from 'hardhat'
 import { poolParams, ROUTERS, TEST_ROUTERS, TOKENS } from '../config'
-import { PoolDetails, Routers, TestRouter, Token, PoolConfig } from '../interfaces'
+import { PoolDetails, Routers, TestRouter, Token, PoolConfig, SavedPool } from '../interfaces'
 import { Factory, MockToken, MockWeth, Swapper } from '../../typechain'
-import { saveJSON } from '../utils'
-import { Contract } from 'ethers'
+import { loadPools, saveJSON } from '../utils'
+import { BigNumber, Contract } from 'ethers'
+import {sleep} from "../../tests/helpers";
 
 export class Deployer {
-    constructor() {}
+    WEIGHT_SUM: BigNumber
+    constructor() {
+        this.WEIGHT_SUM = BigNumber.from(1000000)
+    }
 
     async deployOnChain(verify: boolean = false) {
         const [governance] = await ethers.getSigners()
@@ -18,11 +22,15 @@ export class Deployer {
         const routerTypes = routers.map((val) => val.type)
         const defaultRouter = routers.find((val) => val.isDefault)?.address || routers[0].address
 
-        const Swapper = await this.deploy('Swapper', [routerAddresses, routerTypes, defaultRouter, ethers.constants.AddressZero], verify) as Swapper;
-        const Factory = await this.deploy('Factory', [governance.address, Swapper.address], verify) as Factory;
+        const Swapper = (await this.deploy(
+            'Swapper',
+            [routerAddresses, routerTypes, defaultRouter, ethers.constants.AddressZero],
+            verify
+        )) as Swapper
+        const Factory = (await this.deploy('Factory', [governance.address, Swapper.address], verify)) as Factory
+        await saveJSON({ swapper: Swapper.address, factory: Factory.address }, 'core')
 
-        await this.createPool(Factory, Swapper.address, TOKENS, '') // create default pool
-        await saveJSON({swapper: Swapper.address, factory: Factory.address}, "core");
+        await this.createPool(Factory, Swapper.address, TOKENS) // create default pool
         return { swapper: Swapper, factory: Factory, defaultRouter }
     }
 
@@ -50,7 +58,7 @@ export class Deployer {
         const lib = await Lib.deploy()
         await lib.deployed()
 
-        let factory;
+        let factory
         if (needLibrary.includes(contractName)) {
             factory = await ethers.getContractFactory(contractName, { libraries: { KedrLib: lib.address } })
         } else {
@@ -64,7 +72,7 @@ export class Deployer {
         console.log(`Contract ${contractName} is deployed at: ${Contract.address}`)
         if (verify) {
             try {
-                await this.sleep(5)
+                await sleep(5)
                 await this.verify(Contract.address, ...args)
                 console.log(`Contract ${contractName} is verified`)
             } catch (e) {
@@ -82,6 +90,7 @@ export class Deployer {
     }
 
     async createPool(Factory: Factory, swapper: string, _tokensConfig = TOKENS, _entryAsset: string = '', _test: boolean = false) {
+        const [governance] = await ethers.getSigners()
         const tokensByNetwork = _tokensConfig.filter((val) => val.network == hre.network.name)
         const filteredTokens = tokensByNetwork.filter((token) => token.name !== 'DAI')
         const tokens = filteredTokens.map((token) => token.address)
@@ -91,26 +100,69 @@ export class Deployer {
             successFee: poolParams.successFee,
             entryFee: poolParams.entryFee,
             assets: tokens,
-            weights: new Array(tokens.length).fill((100 / tokens.length).toFixed(0).toString()),
+            weights: new Array(tokens.length).fill(this.WEIGHT_SUM.div(tokens.length)), // similar weights
             minInvestment: poolParams.minInvestment,
-            balanceable: true
+            balanceable: true,
         }
         if (_entryAsset) {
-          entryAsset = _entryAsset;
+            entryAsset = _entryAsset
         }
 
+        const poolsCountBefore = await Factory.poolsCount()
         if (_test) {
             const poolInfo = await Factory.callStatic.create(poolDetails, entryAsset)
+
             await Factory.create(poolDetails, entryAsset)
-            console.log(`Pool created on address: ${poolInfo} with params:\nEntry asset: ${entryAsset}\nTokens: ${filteredTokens.map(token => token.name)}`)
+
+            console.log(
+                `Pool created on address: ${poolInfo} with params:\nEntry asset: ${entryAsset}\nTokens: ${filteredTokens.map(
+                    (token) => token.name
+                )}`
+            )
             return poolInfo
         }
-        const response = await Factory.create(poolDetails, entryAsset)
-        console.log(`Pool created`, response)
-        return response;
-    }
+        await Factory.create(poolDetails, entryAsset)
+        console.log(`Pool creation tx is sended`)
 
-    async sleep(seconds: number) {
-        return new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+        while (true && !_test) {
+            await sleep(10)
+            const count = await Factory.poolsCount()
+            if (count.gt(poolsCountBefore) || +poolsCountBefore > 0) {
+                const poolId = count.toString()
+                const pool = await Factory.pools(+poolId - 1)
+                const poolStorageId = (await Factory.poolsStorageCount()).toString()
+                const poolStorage = await Factory.poolStorages(+poolStorageId - 1)
+
+                const PoolStorage = await hre.ethers.getContractAt("PoolStorage", poolStorage);
+                const name = await PoolStorage.name();
+                const symbol = await PoolStorage.symbol();
+                const poolItem: SavedPool = {
+                    poolStorageId,
+                    poolStorage,
+                    poolId,
+                    pool,
+                    entryToken: entryAsset,
+                    symbol,
+                    name
+                }
+
+                let pools = await loadPools();
+                if (+poolsCountBefore == 0) {
+                    pools = [poolItem]
+                } else {
+                    pools.push(poolItem)
+                }
+
+                console.log(JSON.stringify(pools))
+
+                await saveJSON(JSON.stringify(pools), 'pools')
+                console.log(`Pool created: ${pool}`)
+                console.log(`Pool storage created: ${poolStorage}`)
+                await this.verify(pool, poolId, swapper)
+                await this.verify(poolStorage, poolStorageId, entryAsset, governance.address, name, symbol);
+
+                return pool
+            }
+        }
     }
 }

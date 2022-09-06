@@ -13,7 +13,7 @@ async function invest() {
     const core = await loadCore()
 
     const pool = pools[0]
-    console.log(`Investing in first pool ${pool.poolId}`)
+    console.log(`Withdrawing from first pool ${pool.poolId}`)
 
     const EntryToken = await ethers.getContractAt('ERC20', pool.entryToken)
     const Swapper = (await ethers.getContractAt('Swapper', core.swapper)) as Swapper
@@ -31,33 +31,21 @@ async function invest() {
     let entryBalance = await EntryToken.balanceOf(userAddress)
     const entryDecimals = +(await EntryToken.decimals())
     const entrySymbol = await EntryToken.symbol()
+    const kTokensBalance = await PoolStorage.balanceOf(userAddress)
 
     console.log(`Initial value of pool: ${ethers.utils.formatUnits(initialTotalValue, entryDecimals)} ${entrySymbol}`)
+    console.log(`Balance before: ${ethers.utils.formatUnits(entryBalance, entryDecimals)}`)
+    console.log("kTokensBalance", +kTokensBalance)
 
-    if (entryBalance.eq(BigNumber.from('0'))) {
-        console.log('need to buy entryAsset')
-        const val = (await ethers.provider.getBalance(userAddress)).div(10)
-        await Swapper.swap(ethers.constants.AddressZero, pool.entryToken, val, userAddress, { gasLimit: 2000000, value: val })
-        entryBalance = await EntryToken.balanceOf(userAddress)
-    }
-
-    console.log(`Investing ${ethers.utils.formatUnits(entryBalance, entryDecimals)} of entryAsset`)
-
-    const defaultRouter = await Swapper.defaultRouter()
-    const routerType = await Swapper.routerTypes(defaultRouter)
-    console.log(EntryToken.address, 'EntryToken')
-
-    console.log(defaultRouter, 'defaultRouter')
-    console.log(routerType, 'routerType')
-
-    await EntryToken.connect(user).approve(Pool.address, entryBalance, { gasLimit: 2000000 })
+    await EntryToken.connect(user).approve(Pool.address, kTokensBalance, { gasLimit: 2000000 })
     console.log('approve')
     await sleep(30)
-    await Pool.connect(user).invest(userAddress, entryBalance)
-    console.log('invest')
+    await Pool.connect(user).withdraw(kTokensBalance.div(2))
+    await sleep(30)
+    console.log('withdraw')
 
-    const lpBalance = await PoolStorage.balanceOf(userAddress)
-    console.log('LP Balance: ', ethers.utils.formatUnits(lpBalance, entryDecimals))
+    const kTokensAfter = await PoolStorage.balanceOf(userAddress)
+    console.log('kTokens Balance After: ', ethers.utils.formatUnits(kTokensAfter, entryDecimals))
 
     const totalValue = await Pool.callStatic.totalValue()
     console.log(`Total value of pool: ${ethers.utils.formatUnits(totalValue, entryDecimals)} ${entrySymbol}`)

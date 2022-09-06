@@ -8,6 +8,7 @@ import '../interfaces/IPoolStorage.sol';
 import '../libraries/KedrLib.sol';
 import '../pools/Pool.sol';
 import './PoolStorage.sol';
+import "hardhat/console.sol";
 
 contract Factory is Ownable, ReentrancyGuard {
     address public defaultFeeReceiver; // default feeReceiver is used during each deployment of poolStorage
@@ -39,7 +40,7 @@ contract Factory is Ownable, ReentrancyGuard {
         external
         onlyOwner
         returns (address pool, address poolStorage)
-    {
+    {   
         poolStorage = _createPoolStorage(_entryAsset);
         pool = createPool(poolDetails, swapper);
         _link(pool, poolStorage);
@@ -74,10 +75,13 @@ contract Factory is Ownable, ReentrancyGuard {
      */
     function _createPoolStorage(address _entryAsset) internal returns (address poolStorage) {
         uint256 id = poolStorages.length + 1;
-        string memory entrySymbol = IERC20Metadata(_entryAsset).symbol();
+        string memory entrySymbol = KedrLib.isNative(_entryAsset) ? "NATIVE" : IERC20Metadata(_entryAsset).symbol();
         bytes memory symbol = abi.encodePacked('k', entrySymbol);
         bytes memory name = abi.encodePacked('KEDR_', entrySymbol);
-        bytes memory storageBytecode = abi.encodePacked(type(PoolStorage).creationCode, abi.encode(id, _entryAsset, defaultFeeReceiver, symbol, name));
+        bytes memory storageBytecode = abi.encodePacked(
+            type(PoolStorage).creationCode,
+            abi.encode(id, _entryAsset, defaultFeeReceiver, symbol, name)
+        );
         poolStorage = KedrLib.deploy(storageBytecode);
         poolStorages.push(poolStorage);
         emit PoolStorageCreated(poolStorage, id);
@@ -106,7 +110,11 @@ contract Factory is Ownable, ReentrancyGuard {
         IPool(_pool).updateAllocations(_weights);
     }
 
-    function setWeight(address _pool, address asset, uint24 weight) external onlyOwner {
+    function setWeight(
+        address _pool,
+        address asset,
+        uint24 weight
+    ) external onlyOwner {
         IPool(_pool).setWeight(asset, weight);
     }
 }

@@ -12,6 +12,8 @@ interface IPoolStorage {
 
     function sharePrice() external view returns (uint256);
 
+    function calculateSharePrice(uint256 totalValue) external view returns (uint256);
+
     function calculateShares(uint256 entryAmount) external returns (uint256);
 
     function calculateSharesBySpecificPrice(uint256 entryAmount, uint256 sharePrice) external returns (uint256);
@@ -33,5 +35,6 @@ interface IPoolStorage {
     function feeReceiver() external returns (address);
 
     function setFeeReceiver(address feeReceiver) external;
-    
+
+    function balanceOf(address account) external view returns (uint256);
 }

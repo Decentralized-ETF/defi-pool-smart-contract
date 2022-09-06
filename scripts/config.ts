@@ -1,5 +1,7 @@
 import {Routers, PoolDetails, Token, TestRouter} from "./interfaces";
 
+const AddressZero = "0x0000000000000000000000000000000000000000"
+
 export const ROUTERS: Routers[] = [
     {   
         name: "pancakeswap",
@@ -52,6 +54,11 @@ export const TOKENS: Token[] = [
         address: "0x55d398326f99059fF775485246999027B3197955"
     },
     {
+        name: "BNB",
+        network: "bsc",
+        address: AddressZero
+    },
+    {
         name: "DAI",
         network: "polygon",
         address: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"
@@ -60,6 +67,11 @@ export const TOKENS: Token[] = [
         name: "WETH",
         network: "polygon",
         address: "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619"
+    },
+    {
+        name: "MATIC",
+        network: "polygon",
+        address: AddressZero
     },
     {
         name: "WMATIC",
