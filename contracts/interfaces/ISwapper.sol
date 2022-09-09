@@ -13,11 +13,11 @@ interface ISwapper {
         address _tokenIn,
         address _tokenOut,
         uint256 _amount
-    ) external returns (uint256);
+    ) external view returns (uint256);
 
     function getAmountIn(
         address _tokenIn,
         address _tokenOut,
         uint256 _amountOut
-    ) external returns (uint256);
+    ) external view returns (uint256);
 }

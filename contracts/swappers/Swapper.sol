@@ -2,14 +2,15 @@
 pragma solidity 0.8.15;
 
 import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
-import '@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/IPeripheryImmutableState.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
+import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol';
 import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/utils/Address.sol';
 import '../interfaces/ISwapper.sol';
 import '../libraries/KedrConstants.sol';
 import '../libraries/KedrLib.sol';
@@ -22,15 +23,12 @@ contract Swapper is ISwapper, Ownable {
     address[] internal routeTokens; // list of tokens to build composite routes if there is no direct pair
     address public defaultRouter; // default router to be used when don't want to spend gas to find best router
     address public uniswapV3quoter; // can be empty if no V3 routers are used
-    uint24 internal FEE_500 = 500;
-    uint24 internal FEE_3000 = 3000;
-    uint24 internal FEE_10000 = 10000;
+    uint24[] internal feeTiers;
 
     constructor(
         address[] memory _routers,
         uint8[] memory _routerTypes,
-        address _defaultRouter,
-        address _uniswapV3quoter
+        address _defaultRouter
     ) {
         require(_routers.length == _routerTypes.length, 'INVALID_ROUTERS_DATA');
         routers = _routers;
@@ -41,7 +39,11 @@ contract Swapper is ISwapper, Ownable {
         }
         require(routerTypes[_defaultRouter] > 0, 'INVALID DEFAULT_ROUTER');
         defaultRouter = _defaultRouter;
-        uniswapV3quoter = _uniswapV3quoter;
+
+        // Assign default fee tiers v3
+        feeTiers.push(500);
+        feeTiers.push(3000);
+        feeTiers.push(10000);
     }
 
     function swap(
@@ -83,7 +85,7 @@ contract Swapper is ISwapper, Ownable {
         address _tokenIn,
         address _tokenOut,
         uint256 _amount
-    ) public override returns (uint256) {
+    ) public view override returns (uint256 amountOut) {
         if (_tokenIn == _tokenOut) return _amount;
 
         (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
@@ -96,9 +98,13 @@ contract Swapper is ISwapper, Ownable {
                 _amount,
                 getAddressRoute(router, routerType, _tokenIn, _tokenOut)
             );
-            return amounts[amounts.length - 1]; // last item
+            amountOut = amounts[amounts.length - 1]; // last item
         } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
-            return IQuoter(uniswapV3quoter).quoteExactInput(getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amount);
+            (, , address pool) = _findPathByTiers(IPeripheryImmutableState(router).factory(), _tokenIn, _tokenOut);
+            if (pool != address(0)) {
+                (uint160 sqrtRatioX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
+                amountOut = _getQuoteV3(sqrtRatioX96, uint128(_amount), _tokenIn, _tokenOut);
+            }
         } else {
             return 0;
         }
@@ -108,24 +114,27 @@ contract Swapper is ISwapper, Ownable {
         address _tokenIn,
         address _tokenOut,
         uint256 _amountOut
-    ) public override returns (uint256) {
+    ) public override view returns (uint256 amountOut) {
         if (_tokenIn == _tokenOut) return _amountOut;
-
         (address router, uint8 routerType) = getBestRouter(_tokenIn, _tokenOut);
 
         if (routerType == KedrConstants._ROUTER_TYPE_BALANCER) {
             // todo: future work
-            return _amountOut;
+            amountOut = _amountOut;
         } else if (routerType == KedrConstants._ROUTER_TYPE_V2) {
             uint256[] memory amounts = IUniswapV2Router02(router).getAmountsIn(
                 _amountOut,
                 getAddressRoute(router, routerType, _tokenIn, _tokenOut)
             );
-            return amounts[0]; // first item
+            amountOut = amounts[0]; // first item
         } else if (routerType == KedrConstants._ROUTER_TYPE_V3) {
-            return IQuoter(uniswapV3quoter).quoteExactOutput(getBytesRoute(router, routerType, _tokenIn, _tokenOut), _amountOut);
+            (, , address pool) = _findPathByTiers(IPeripheryImmutableState(router).factory(), _tokenOut, _tokenIn);
+            if (pool != address(0)) {
+                (uint160 sqrtRatioX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
+                amountOut = _getQuoteV3(sqrtRatioX96, uint128(_amountOut), _tokenOut, _tokenIn);
+            }
         } else {
-            return 0;
+            amountOut = 0;
         }
     }
 
@@ -222,6 +231,22 @@ contract Swapper is ISwapper, Ownable {
         }
     }
 
+    function _getQuoteV3(
+        uint160 sqrtRatioX96,
+        uint128 baseAmount,
+        address baseToken,
+        address quoteToken
+    ) internal pure returns (uint256 quoteAmount) {
+        // Calculate quoteAmount with better precision if it doesn't overflow when multiplied by itself
+        if (sqrtRatioX96 <= type(uint128).max) {
+            uint256 ratioX192 = uint256(sqrtRatioX96) * sqrtRatioX96;
+            quoteAmount = baseToken < quoteToken ? (ratioX192 * baseAmount) / (1 << 192) : ((1 << 192) * baseAmount) / ratioX192;
+        } else {
+            uint256 ratioX128 = (sqrtRatioX96 * sqrtRatioX96) / (1 << 64);
+            quoteAmount = baseToken < quoteToken ? (ratioX128 * baseAmount) / (1 << 128) : ((1 << 128) * baseAmount) / ratioX128;
+        }
+    }
+
     function _getV3Route(
         address router,
         address tokenIn,
@@ -233,16 +258,16 @@ contract Swapper is ISwapper, Ownable {
         if (KedrLib.isNative(tokenIn)) tokenIn = WETH;
         if (KedrLib.isNative(tokenOut)) tokenOut = WETH;
 
-        (route, ) = _checkEveryFeeForV3Pool(factory, tokenIn, tokenOut);
+        (route, , ) = _findPathByTiers(factory, tokenIn, tokenOut);
 
         if (route.length == 0) {
             // finding multi-hop route:
             address[] memory tokens = routeTokens; // gas saving
 
             for (uint256 i; i < tokens.length; ++i) {
-                (bytes memory firstHop, uint24 firstFeeTier) = _checkEveryFeeForV3Pool(factory, tokenIn, tokens[i]);
+                (bytes memory firstHop, uint24 firstFeeTier, ) = _findPathByTiers(factory, tokenIn, tokens[i]);
                 if (firstHop.length > 0) {
-                    (bytes memory secondHop, uint24 secondFeeTier) = _checkEveryFeeForV3Pool(factory, tokens[i], tokenOut);
+                    (bytes memory secondHop, uint24 secondFeeTier, ) = _findPathByTiers(factory, tokens[i], tokenOut);
                     if (secondHop.length > 0) {
                         route = abi.encodePacked(tokenIn, firstFeeTier, tokens[i], secondFeeTier, tokenOut);
                         break;
@@ -252,25 +277,40 @@ contract Swapper is ISwapper, Ownable {
         }
     }
 
-    function _checkEveryFeeForV3Pool(
+    function _findPathByTiers(
         address factory,
         address tokenIn,
         address tokenOut
-    ) internal view returns (bytes memory route, uint24 fee) {
-        IUniswapV3Factory Factory = IUniswapV3Factory(factory);
-
-        if (Factory.getPool(tokenIn, tokenOut, FEE_500) != address(0)) {
-            route = abi.encodePacked(tokenIn, FEE_500, tokenOut);
-            fee = FEE_500;
-        } else if (Factory.getPool(tokenIn, tokenOut, FEE_3000) != address(0)) {
-            route = abi.encodePacked(tokenIn, FEE_3000, tokenOut);
-            fee = FEE_3000;
-        } else if (Factory.getPool(tokenIn, tokenOut, FEE_3000) != address(0)) {
-            route = abi.encodePacked(tokenIn, FEE_10000, tokenOut);
-            fee = FEE_10000;
-        } else {
-            route = bytes('');
+    )
+        internal
+        view
+        returns (
+            bytes memory route,
+            uint24 fee,
+            address pool
+        )
+    {
+        uint24[] memory _feeTiers = feeTiers;
+        uint256 _length = _feeTiers.length;
+        for (uint24 i; i < _length; ++i) {
+            (bool poolFound, address _pool) = _isV3PoolExists(factory, tokenIn, tokenOut, _feeTiers[i]);
+            if (poolFound) {
+                route = abi.encodePacked(tokenIn, _feeTiers[i], tokenOut);
+                fee = _feeTiers[i];
+                pool = _pool;
+                break;
+            }
         }
+    }
+
+    function _isV3PoolExists(
+        address factory,
+        address tokenIn,
+        address tokenOut,
+        uint24 fee
+    ) internal view returns (bool, address) {
+        address pool = IUniswapV3Factory(factory).getPool(tokenIn, tokenOut, fee);
+        return (pool != address(0), pool);
     }
 
     function _v2swap(

@@ -24,7 +24,7 @@ export class Deployer {
 
         const Swapper = (await this.deploy(
             'Swapper',
-            [routerAddresses, routerTypes, defaultRouter, ethers.constants.AddressZero],
+            [routerAddresses, routerTypes, defaultRouter],
             verify
         )) as Swapper
         const Factory = (await this.deploy('Factory', [governance.address, Swapper.address], verify)) as Factory
@@ -39,8 +39,8 @@ export class Deployer {
 
         const routersConfig = _routers.filter((router) => router.network === 'hardhat' && router.type === routerType.toString())
         const { router, routerFactory } = await this.deployMockRouter(routersConfig[0])
-        //Todo change _uniswapV3quoter
-        const Swapper = await this.deploy('Swapper', [[router.address], [routerType], router.address, governance.address])
+
+        const Swapper = await this.deploy('Swapper', [[router.address], [routerType], router.address])
         const Factory = await this.deploy('Factory', [governance.address, Swapper.address])
         return { swapper: Swapper, factory: Factory, router, routerFactory }
     }
