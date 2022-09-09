@@ -65,7 +65,7 @@ abstract contract BasePool is IPool, ReentrancyGuard {
         }
     }
 
-    function totalValue() public override returns (uint256 _totalValue) {
+    function totalValue() public override view returns (uint256 _totalValue) {
         address[] memory poolAssets = poolDetails.assets; // gas savings
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {

@@ -14,13 +14,13 @@ interface IPoolStorage {
 
     function calculateSharePrice(uint256 totalValue) external view returns (uint256);
 
-    function calculateShares(uint256 entryAmount) external returns (uint256);
+    function calculateShares(uint256 entryAmount) external view returns (uint256);
 
-    function calculateSharesBySpecificPrice(uint256 entryAmount, uint256 sharePrice) external returns (uint256);
+    function calculateSharesBySpecificPrice(uint256 entryAmount, uint256 sharePrice) external view returns (uint256);
 
-    function calculateEntryAmount(uint256 shares) external returns (uint256);
+    function calculateEntryAmount(uint256 shares) external view returns (uint256);
 
-    function calculateEntryAmountBySpeicificPrice(uint256 shares, uint256 sharePrice) external returns (uint256);
+    function calculateEntryAmountBySpeicificPrice(uint256 shares, uint256 sharePrice) external view returns (uint256);
 
     function recordInvestment(address investor, uint256 shares, uint256 sharePrice, uint256 amountInvested, uint256 entryFee, uint256 swapFeesLoss) external;
 
