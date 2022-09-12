@@ -4,6 +4,6 @@
     "not-rely-on-time": "off",
     "private-vars-leading-underscore": "warning",
     "quotes": "single",
-    "compiler-version": ["warn", "^0.8.0"]
+    "compiler-version": ["warn", "0.8.15"]
   }
 }

@@ -109,7 +109,7 @@ contract PoolStorage is ERC20 {
         feeReceiver = _feeReceiver;
     }
 
-    function sharePrice() public returns (uint256) {
+    function sharePrice() public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) {
             return NUMERATOR; // initial price
@@ -126,7 +126,7 @@ contract PoolStorage is ERC20 {
         return (totalValue * NUMERATOR) / _totalSupply;
     }
 
-    function calculateShares(uint256 _entryAmount) public returns (uint256) {
+    function calculateShares(uint256 _entryAmount) public view returns (uint256) {
         return (_entryAmount * NUMERATOR) / sharePrice();
     }
 
@@ -134,11 +134,11 @@ contract PoolStorage is ERC20 {
         return (_entryAmount * NUMERATOR) / _sharePrice;
     }
 
-    function calculateEntryAmount(uint256 _shares) public returns (uint256) {
+    function calculateEntryAmount(uint256 _shares) public view returns (uint256) {
         return (_shares * sharePrice()) / NUMERATOR;
     }
 
-    function calculateEntryAmountBySpeicificPrice(uint256 _shares, uint256 _sharePrice) public returns (uint256) {
+    function calculateEntryAmountBySpeicificPrice(uint256 _shares, uint256 _sharePrice) public pure returns (uint256) {
         return (_shares * _sharePrice) / NUMERATOR;
     }
 }
