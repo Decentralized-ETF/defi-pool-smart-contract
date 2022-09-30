@@ -15,7 +15,7 @@ async function invest() {
     const pool = pools[0]
     console.log(`Investing in first pool ${pool.poolId}`)
 
-    const EntryToken = await ethers.getContractAt('ERC20', pool.entryToken)
+    const EntryToken = await ethers.getContractAt('ERC20', pool.entryAsset)
     const Swapper = (await ethers.getContractAt('Swapper', core.swapper)) as Swapper
     const Pool = (await ethers.getContractAt('Pool', pool.pool)) as Pool
     const PoolStorage = (await ethers.getContractAt('PoolStorage', pool.poolStorage)) as PoolStorage
@@ -37,7 +37,7 @@ async function invest() {
     if (entryBalance.eq(BigNumber.from('0'))) {
         console.log('need to buy entryAsset')
         const val = (await ethers.provider.getBalance(userAddress)).div(10)
-        await Swapper.swap(ethers.constants.AddressZero, pool.entryToken, val, userAddress, { gasLimit: 2000000, value: val })
+        await Swapper.swap(ethers.constants.AddressZero, pool.entryAsset, val, userAddress, { gasLimit: 2000000, value: val })
         entryBalance = await EntryToken.balanceOf(userAddress)
     }
 

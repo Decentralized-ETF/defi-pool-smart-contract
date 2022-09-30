@@ -9,7 +9,7 @@ async function main() {
     const core = await loadCore();
     const deployer = new Deployer();
     const Factory = await ethers.getContractAt("Factory", core.factory) as Factory
-    await deployer.createPool(Factory, core.swapper, TOKENS)
+    // await deployer.createPoolWithStorage(Factory, core.swapper, TOKENS)
 }
 
 main().catch((error) => {

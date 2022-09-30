@@ -15,7 +15,7 @@ async function invest() {
     const pool = pools[0]
     console.log(`Withdrawing from first pool ${pool.poolId}`)
 
-    const EntryToken = await ethers.getContractAt('ERC20', pool.entryToken)
+    const EntryToken = await ethers.getContractAt('ERC20', pool.entryAsset)
     const Swapper = (await ethers.getContractAt('Swapper', core.swapper)) as Swapper
     const Pool = (await ethers.getContractAt('Pool', pool.pool)) as Pool
     const PoolStorage = (await ethers.getContractAt('PoolStorage', pool.poolStorage)) as PoolStorage

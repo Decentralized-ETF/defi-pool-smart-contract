@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
@@ -74,6 +74,21 @@ abstract contract BasePool is IPool, ReentrancyGuard {
             if (assetBalance > 0 && asset != _entryAsset) {
                 uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, assetBalance);
                 require(valueConverted > 0, 'ORACLE_ERROR');
+                _totalValue += valueConverted;
+            }
+        }
+        _totalValue += _assetBalance(_entryAsset); // additional counting entryAsset balance
+    }
+
+    function unsafeTotalValue() public view returns (uint256 _totalValue) {
+        address[] memory poolAssets = poolDetails.assets; // gas savings
+        address _entryAsset = entryAsset(); // gas savings
+        for (uint256 i; i < poolAssets.length; ++i) {
+            address asset = poolAssets[i];
+            uint256 assetBalance = _assetBalance(asset);
+            if (assetBalance > 0 && asset != _entryAsset) {
+                uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, assetBalance);
+                require(valueConverted >= 0, 'ORACLE_ERROR');
                 _totalValue += valueConverted;
             }
         }

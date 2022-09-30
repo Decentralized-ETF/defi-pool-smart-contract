@@ -1,6 +1,6 @@
 import fs from 'fs'
 
-import { SavedPool, SavedCore } from "./interfaces"
+import { SavedPoolWithStorage, SavedCore, SavedPool } from "./interfaces"
 
 export async function saveJSON(json: object | string, fileName: string) {
     if (typeof json === 'string') json = JSON.parse(json)

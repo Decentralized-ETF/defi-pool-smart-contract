@@ -1,4 +1,4 @@
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
@@ -18,6 +18,7 @@ contract Factory is Ownable, ReentrancyGuard {
 
     event PoolCreated(address _address, uint256 _id);
     event PoolStorageCreated(address _address, uint256 _id);
+    event Unlinked(address _address, uint256 _id);
 
     constructor(address _defaultFeeReceiver, address _swapper) {
         require(_defaultFeeReceiver != address(0) && _swapper != address(0), 'ZERO_ADDRESS');
@@ -36,12 +37,12 @@ contract Factory is Ownable, ReentrancyGuard {
     /**
      * The main function for Pool Creation. Creates new Pool & PoolStorage and link each other.
      */
-    function create(IPool.PoolDetails memory poolDetails, address _entryAsset)
+    function create(IPool.PoolDetails memory poolDetails, address _entryAsset, string calldata _name, string calldata _symbol)
         external
         onlyOwner
         returns (address pool, address poolStorage)
     {   
-        poolStorage = _createPoolStorage(_entryAsset);
+        poolStorage = createStorage(_entryAsset, _name, _symbol);
         pool = createPool(poolDetails, swapper);
         _link(pool, poolStorage);
     }
@@ -52,10 +53,12 @@ contract Factory is Ownable, ReentrancyGuard {
      */
     function switchStorageToNewPool(address _newPool, address _poolStorage) external onlyOwner {
         address oldPool = IPoolStorage(_poolStorage).pool();
+        uint64 poolId = IPool(oldPool).poolId();
         IPool(oldPool).moveFunds(_newPool);
         IPool(oldPool).unlink();
         IPool(_newPool).link(_poolStorage);
         IPoolStorage(_poolStorage).link(_newPool);
+        emit Unlinked(oldPool, poolId);
     }
 
     /**
@@ -70,17 +73,13 @@ contract Factory is Ownable, ReentrancyGuard {
         emit PoolCreated(pool, poolId);
     }
 
-    /**
-     * Creates new PoolStorage without linking to Pool
-     */
-    function _createPoolStorage(address _entryAsset) internal returns (address poolStorage) {
+    function createStorage(address _entryAsset, string calldata _name, string calldata _symbol) public returns (address poolStorage) {
         uint256 id = poolStorages.length + 1;
-        string memory entrySymbol = KedrLib.isNative(_entryAsset) ? "NATIVE" : IERC20Metadata(_entryAsset).symbol();
-        bytes memory symbol = abi.encodePacked('k', entrySymbol);
-        bytes memory name = abi.encodePacked('KEDR_', entrySymbol);
+        bytes memory symbol = bytes(_symbol);
+        bytes memory name = bytes(_name);
         bytes memory storageBytecode = abi.encodePacked(
             type(PoolStorage).creationCode,
-            abi.encode(id, _entryAsset, defaultFeeReceiver, symbol, name)
+            abi.encode(id, _entryAsset, defaultFeeReceiver, name, symbol)
         );
         poolStorage = KedrLib.deploy(storageBytecode);
         poolStorages.push(poolStorage);

@@ -1,8 +1,9 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '../libraries/KedrConstants.sol';
 import '../interfaces/IPoolStorage.sol';
 import '../interfaces/IPool.sol';
@@ -20,8 +21,10 @@ contract PoolStorage is ERC20 {
     uint256 public totalReceivedEntryAsset = 0;
     uint256 public totalWithdrawnEntryAsset = 0;
     uint256 public totalSwapFeesLoss = 0;
-    uint256 internal constant NUMERATOR = 1e18;
-    IPool internal Pool;
+    uint8 public _decimals;
+    uint256 private numerator;
+    IPool internal iPool;
+
 
     event Withdrawal(
         address indexed user,
@@ -64,12 +67,22 @@ contract PoolStorage is ERC20 {
         factory = msg.sender;
         feeReceiver = _feeReceiver;
         entryAsset = _entryAsset;
+        if (_entryAsset == address(0)) {
+            _decimals = 18;
+        } else {
+            _decimals = ERC20(_entryAsset).decimals();
+        }
+        numerator = 1 * (10 ** decimals());
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return _decimals;
     }
 
     function link(address _pool) external onlyFactory {
         require(_pool != address(0), 'ZERO_ADDRESS');
         pool = _pool;
-        Pool = IPool(_pool);
+        iPool = IPool(_pool);
     }
 
     function recordInvestment(
@@ -112,33 +125,33 @@ contract PoolStorage is ERC20 {
     function sharePrice() public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) {
-            return NUMERATOR; // initial price
+            return numerator; // initial price
         }
-        uint256 totalValue = Pool.totalValue();
-        return (totalValue * NUMERATOR) / _totalSupply; // check: maybe need to add multiplier here, not sure
+        uint256 totalValue = iPool.totalValue();
+        return (totalValue * numerator) / _totalSupply; // check: maybe need to add multiplier here, not sure
     }
 
     function calculateSharePrice(uint256 totalValue) public view returns (uint256) {
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0 || totalValue == 0) {
-            return NUMERATOR; // initial price
+            return numerator; // initial price
         }
-        return (totalValue * NUMERATOR) / _totalSupply;
+        return (totalValue * numerator) / _totalSupply;
     }
 
     function calculateShares(uint256 _entryAmount) public view returns (uint256) {
-        return (_entryAmount * NUMERATOR) / sharePrice();
+        return (_entryAmount * numerator) / sharePrice();
     }
 
-    function calculateSharesBySpecificPrice(uint256 _entryAmount, uint256 _sharePrice) public pure returns (uint256) {
-        return (_entryAmount * NUMERATOR) / _sharePrice;
+    function calculateSharesBySpecificPrice(uint256 _entryAmount, uint256 _sharePrice) public view returns (uint256) {
+        return (_entryAmount * numerator) / _sharePrice;
     }
 
     function calculateEntryAmount(uint256 _shares) public view returns (uint256) {
-        return (_shares * sharePrice()) / NUMERATOR;
+        return (_shares * sharePrice()) / numerator;
     }
 
-    function calculateEntryAmountBySpeicificPrice(uint256 _shares, uint256 _sharePrice) public pure returns (uint256) {
-        return (_shares * _sharePrice) / NUMERATOR;
+    function calculateEntryAmountBySpeicificPrice(uint256 _shares, uint256 _sharePrice) public view returns (uint256) {
+        return (_shares * _sharePrice) / numerator;
     }
 }

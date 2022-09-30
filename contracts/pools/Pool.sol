@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import '../base/BasePool.sol';
 
@@ -42,6 +42,7 @@ contract Pool is BasePool {
         uint24[] memory weights = poolDetails.weights;
 
         for (uint256 i; i < assets.length; ++i) {
+            if(weights[i] == 0) { continue; }
             if (assets[i] != entryAsset) {
                 uint256 entryAmount = (invested * weights[i]) / weightsSum;
                 uint256 currentBalance = _assetBalance(entryAsset);
@@ -84,6 +85,45 @@ contract Pool is BasePool {
 
         _checkInaccuracy(withdrawAmount, totalReceived);
 
+        uint256 swapFeesLoss = totalValueBefore - totalValue();
+        withdrawAmount = totalReceived - swapFeesLoss; // adjust withdraw amount by possible INACCURACY and deduct swapFee losses
+        uint256 successFee = _calcualteSuccessFee(withdrawAmount);
+        withdrawAmount = withdrawAmount - successFee; // deduct successFee, withdrawAmount is the amount user really received
+
+        address feeReceiver = PoolStorage.feeReceiver();
+        if (KedrLib.isNative(entryAsset)) {
+            TransferHelper.safeTransferETH(msg.sender, withdrawAmount);
+            TransferHelper.safeTransferETH(feeReceiver, successFee);
+        } else {
+            TransferHelper.safeTransfer(entryAsset, msg.sender, withdrawAmount);
+            TransferHelper.safeTransfer(entryAsset, feeReceiver, successFee);
+        }
+        PoolStorage.recordWithdrawal(msg.sender, _shares, sharePrice, withdrawAmount, successFee, swapFeesLoss);
+    }
+
+    /**
+     * Do exactly the same as withdraw, but have no inacuracy check
+     * required in order to be able to withdraw at least something if
+     * main method always reverting tx
+     */
+    function withdrawUnsafe(uint256 _shares) public {
+        require(_shares > 0, 'ZERO_AMOUNT');
+        address entryAsset = entryAsset(); // gas saving
+        uint256 sharePrice = PoolStorage.sharePrice();
+        uint256 withdrawAmount = PoolStorage.calculateEntryAmountBySpeicificPrice(_shares, sharePrice);
+        address[] memory assets = poolDetails.assets;
+        uint24[] memory weights = poolDetails.weights;
+        uint256 totalReceived;
+        uint256 totalValueBefore = totalValue();
+
+        for (uint256 i; i < assets.length; ++i) {
+            uint256 amountOut = (withdrawAmount * weights[i]) / weightsSum;
+            if (assets[i] != entryAsset) {
+                totalReceived += _sellToExactAmount(assets[i], entryAsset, amountOut);
+            } else {
+                totalReceived += amountOut;
+            }
+        }
         uint256 swapFeesLoss = totalValueBefore - totalValue();
         withdrawAmount = totalReceived - swapFeesLoss; // adjust withdraw amount by possible INACCURACY and deduct swapFee losses
         uint256 successFee = _calcualteSuccessFee(withdrawAmount);

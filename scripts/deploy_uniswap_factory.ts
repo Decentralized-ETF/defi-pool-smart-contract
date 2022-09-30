@@ -3,7 +3,7 @@ import {Deployer} from "./classes/Deployer";
 
 async function main() {
     const deployer = new Deployer()
-    await deployer.deployOnChain(true)
+    await deployer.deployFactory(true);
 }
 
 main().catch((error) => {

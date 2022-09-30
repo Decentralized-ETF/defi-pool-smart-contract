@@ -17,7 +17,7 @@ export interface PoolDetails {
     swapper: string
     minInvestment: string
     assets: string[]
-    weights: string[]
+    weights: number[]
     entryFee: string
     successFee: string
     balanceable: true
@@ -30,17 +30,21 @@ export interface Token {
 }
 
 export interface PoolConfig {
-    tokens: Token[]
-    weights: string[]
+    assets: Token[]
+    weights: number[];
     entryAsset: Token
+    name: string;
+    symbol: string;
 }
 
-export interface SavedPool {
-    poolStorageId: string
-    poolStorage: string
+export interface  SavedPool {
     poolId: string
     pool: string
-    entryToken: string
+    entryAsset: string
+}
+export interface SavedPoolWithStorage extends SavedPool {
+    poolStorageId: string
+    poolStorage: string
     symbol: string
     name: string
 }
