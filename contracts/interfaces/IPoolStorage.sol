@@ -12,6 +12,8 @@ interface IPoolStorage {
 
     function sharePrice() external view returns (uint256);
 
+    function unsafeSharePrice() external view returns (uint256);
+
     function calculateSharePrice(uint256 totalValue) external view returns (uint256);
 
     function calculateShares(uint256 entryAmount) external view returns (uint256);

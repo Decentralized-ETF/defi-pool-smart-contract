@@ -109,7 +109,7 @@ contract Pool is BasePool {
     function withdrawUnsafe(uint256 _shares) public {
         require(_shares > 0, 'ZERO_AMOUNT');
         address entryAsset = entryAsset(); // gas saving
-        uint256 sharePrice = PoolStorage.sharePrice();
+        uint256 sharePrice = PoolStorage.unsafeSharePrice();
         uint256 withdrawAmount = PoolStorage.calculateEntryAmountBySpeicificPrice(_shares, sharePrice);
         address[] memory assets = poolDetails.assets;
         uint24[] memory weights = poolDetails.weights;
@@ -124,7 +124,7 @@ contract Pool is BasePool {
                 totalReceived += amountOut;
             }
         }
-        uint256 swapFeesLoss = totalValueBefore - totalValue();
+        uint256 swapFeesLoss = totalValueBefore - unsafeTotalValue();
         withdrawAmount = totalReceived - swapFeesLoss; // adjust withdraw amount by possible INACCURACY and deduct swapFee losses
         uint256 successFee = _calcualteSuccessFee(withdrawAmount);
         withdrawAmount = withdrawAmount - successFee; // deduct successFee, withdrawAmount is the amount user really received

@@ -2,6 +2,14 @@
 pragma solidity 0.8.17;
 
 interface ISwapper {
+    struct PoolRoute {
+        bytes route;
+        uint24 fee;
+        address pool;
+        uint256 tokenInBalance;
+        uint256 tokenOutBalance;
+    }
+
     function swap(
         address _tokenIn,
         address _tokenOut,

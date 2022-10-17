@@ -1,5 +1,6 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.17;
+pragma abicoder v2;
 
 import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/IPeripheryImmutableState.sol';
@@ -178,6 +179,7 @@ contract Swapper is ISwapper, Ownable {
     }
 
     function getBestRouter(address tokenIn, address tokenOut) internal view returns (address router, uint8 routerType) {
+        uint256 val = 1 ether;
         router = defaultRouter;
         routerType = routerTypes[router];
     }
@@ -292,16 +294,43 @@ contract Swapper is ISwapper, Ownable {
     {
         uint24[] memory _feeTiers = feeTiers;
         uint256 _length = _feeTiers.length;
+        PoolRoute[] memory poolRoutes;
+        PoolRoute memory selectedRoute;
         for (uint24 i; i < _length; ++i) {
-            (bool poolFound, address _pool) = _isV3PoolExists(factory, tokenIn, tokenOut, _feeTiers[i]);
-            if (poolFound) {
-                route = abi.encodePacked(tokenIn, _feeTiers[i], tokenOut);
-                fee = _feeTiers[i];
-                pool = _pool;
-                break;
+            poolRoutes[poolRoutes.length] = findV3PoolRoute(factory, tokenIn, tokenOut, _feeTiers[i]);
+        }
+
+        uint256 _routesLength = poolRoutes.length;
+        uint256 _largestAmountTokenOut = 0; 
+        for (uint24 j; j < _routesLength; ++j) {
+            if(poolRoutes[j].tokenOutBalance > _largestAmountTokenOut) {
+                selectedRoute = poolRoutes[j];
             }
         }
+        route = selectedRoute.route;
+        fee = selectedRoute.fee;
+        pool = selectedRoute.pool;
     }
+
+    function findV3PoolRoute(address _factory, address _tokenIn, address _tokenOut, uint24 _feeTier) internal view returns (PoolRoute memory) {
+        PoolRoute memory _pRoute;
+        (bool poolFound, address _pool) = _isV3PoolExists(_factory, _tokenIn, _tokenOut, _feeTier);
+        if (poolFound) {
+            uint256 tokenInBalance = IERC20(_tokenIn).balanceOf(_pool);
+            uint256 tokenOutBalance = IERC20(_tokenOut).balanceOf(_pool);
+            _pRoute = PoolRoute(
+                abi.encodePacked(_tokenIn, _feeTier, _tokenOut),
+                _feeTier,
+                _pool,
+                tokenInBalance,
+                tokenOutBalance
+            );
+        }
+        return _pRoute;
+    }
+
+
+
 
     function _isV3PoolExists(
         address factory,

@@ -67,11 +67,11 @@ contract PoolStorage is ERC20 {
         factory = msg.sender;
         feeReceiver = _feeReceiver;
         entryAsset = _entryAsset;
-        if (_entryAsset == address(0)) {
-            _decimals = 18;
-        } else {
-            _decimals = ERC20(_entryAsset).decimals();
-        }
+        // if (_entryAsset == address(0)) {
+        _decimals = 18;
+        // } else {
+            // _decimals = ERC20(_entryAsset).decimals();
+        // }
         numerator = 1 * (10 ** decimals());
     }
 
@@ -129,6 +129,15 @@ contract PoolStorage is ERC20 {
         }
         uint256 totalValue = iPool.totalValue();
         return (totalValue * numerator) / _totalSupply; // check: maybe need to add multiplier here, not sure
+    }
+
+    function unsafeSharePrice() public view returns (uint256) {
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0) {
+            return numerator; // initial price
+        }
+        uint256 totalValue = iPool.unsafeTotalValue();
+        return (totalValue * numerator) / _totalSupply;
     }
 
     function calculateSharePrice(uint256 totalValue) public view returns (uint256) {

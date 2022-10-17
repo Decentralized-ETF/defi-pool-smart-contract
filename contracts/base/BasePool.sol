@@ -73,7 +73,7 @@ abstract contract BasePool is IPool, ReentrancyGuard {
             uint256 assetBalance = _assetBalance(asset);
             if (assetBalance > 0 && asset != _entryAsset) {
                 uint256 valueConverted = Swapper.getAmountOut(asset, _entryAsset, assetBalance);
-                require(valueConverted > 0, 'ORACLE_ERROR');
+                require(valueConverted >= 0, 'ORACLE_ERROR');
                 _totalValue += valueConverted;
             }
         }
@@ -135,12 +135,12 @@ abstract contract BasePool is IPool, ReentrancyGuard {
     /**
      * @dev must be implemented in inherited classes
      */
-    function invest(address _investor, uint256 _amount) public payable virtual override {}
+    function invest(address _investor, uint256 _amount, bytes[] transactions) public payable virtual override {}
 
     /**
      * @dev must be implemented in inherited classes
      */
-    function withdraw(uint256 _amount) public virtual override {}
+    function withdraw(uint256 _amount, bytes[] transactions) public virtual override {}
 
     /**
      * @dev must be implemented in inherited classes

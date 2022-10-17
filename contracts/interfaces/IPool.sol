@@ -28,6 +28,8 @@ interface IPool {
 
     function totalValue() external view returns (uint256);
 
+    function unsafeTotalValue() external view returns (uint256);
+
     function entryAsset() external view returns (address);
 
     function factory() external view returns (address);
