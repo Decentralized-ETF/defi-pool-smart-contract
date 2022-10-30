@@ -8,7 +8,7 @@ import '../interfaces/IPool.sol';
 import '../interfaces/IPoolStorage.sol';
 import '../libraries/KedrConstants.sol';
 import '../libraries/KedrLib.sol';
-import '../interfaces/ISwapper.sol';
+import '../interfaces/IZxSwapper.sol';
 
 abstract contract BasePool is IPool, ReentrancyGuard {
     uint64 public override poolId;
@@ -17,13 +17,13 @@ abstract contract BasePool is IPool, ReentrancyGuard {
     uint24 public weightsSum;
     PoolDetails public poolDetails;
     IPoolStorage internal PoolStorage;
-    ISwapper internal Swapper;
+    IZxSwapper internal Swapper;
     bool public balanceable;
 
     constructor(uint64 _poolId, address _swapper) {
         factory = msg.sender;
         poolId = _poolId;
-        Swapper = ISwapper(_swapper);
+        Swapper = IZxSwapper(_swapper);
     }
 
     modifier onlyFactory() {
@@ -65,7 +65,7 @@ abstract contract BasePool is IPool, ReentrancyGuard {
         }
     }
 
-    function totalValue() public override view returns (uint256 _totalValue) {
+    function totalValue() public returns (uint256 _totalValue) {
         address[] memory poolAssets = poolDetails.assets; // gas savings
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {
@@ -80,7 +80,7 @@ abstract contract BasePool is IPool, ReentrancyGuard {
         _totalValue += _assetBalance(_entryAsset); // additional counting entryAsset balance
     }
 
-    function unsafeTotalValue() public view returns (uint256 _totalValue) {
+    function unsafeTotalValue() public returns (uint256 _totalValue) {
         address[] memory poolAssets = poolDetails.assets; // gas savings
         address _entryAsset = entryAsset(); // gas savings
         for (uint256 i; i < poolAssets.length; ++i) {
@@ -135,12 +135,12 @@ abstract contract BasePool is IPool, ReentrancyGuard {
     /**
      * @dev must be implemented in inherited classes
      */
-    function invest(address _investor, uint256 _amount, bytes[] transactions) public payable virtual override {}
+    function invest(address _investor, uint256 _amount, bytes[] memory transactions) public payable virtual override {}
 
     /**
      * @dev must be implemented in inherited classes
      */
-    function withdraw(uint256 _amount, bytes[] transactions) public virtual override {}
+    function withdraw(uint256 _amount, bytes[] memory transactions) public virtual {}
 
     /**
      * @dev must be implemented in inherited classes

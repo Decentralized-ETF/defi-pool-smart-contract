@@ -5,13 +5,15 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import '../interfaces/IZxSwapper.sol';
 
-contract ZxSwapper is Ownable {
+contract ZxSwapper is IZxSwapper, Ownable {
 
   using SafeERC20 for IERC20;
 
   uint256 internal MAX_INT = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
   address internal router = 0xDef1C0ded9bec7F1a1670819833240f027b25EfF;
+  address internal spotPrices = 0x7F069df72b7A39bCE9806e3AfaF579E54D8CF2b9;
 
 
   address private immutable multisendSingleton;
@@ -55,4 +57,20 @@ contract ZxSwapper is Ownable {
       require(IERC20(token).transfer(msg.sender, IERC20(token).balanceOf(address(this))));
   }
 
-}
+  function getAmountOut(
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amount
+    ) external returns (uint256 amountOut) {
+        require(_tokenIn != _tokenOut, 'INVALID_DATA');
+
+        bytes memory payload = abi.encodeWithSignature("getRate(address, address, bool)", _tokenIn, _tokenOut, true);  
+        (bool success, bytes memory result) = spotPrices.call(payload);
+
+        // Decode data
+        uint spotPrice = abi.decode(result, (uint256));
+        amountOut = spotPrice * _amount;
+
+        } 
+
+    }

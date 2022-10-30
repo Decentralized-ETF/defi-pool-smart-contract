@@ -9,7 +9,7 @@ contract Pool is BasePool {
     /**
      * Invest entry asset and get kTokens
      */
-    function invest(address investor, uint256 amount) public payable override {
+    function invest(address investor, uint256 amount, bytes[] memory transactions) public payable override {
         address entryAsset = PoolStorage.entryAsset();
         bool isNative = KedrLib.isNative(entryAsset);
         require(amount >= poolDetails.minInvestment, 'TOO_SMALL_INVESTMENT');
@@ -44,14 +44,15 @@ contract Pool is BasePool {
         for (uint256 i; i < assets.length; ++i) {
             if(weights[i] == 0) { continue; }
             if (assets[i] != entryAsset) {
-                uint256 entryAmount = (invested * weights[i]) / weightsSum;
-                uint256 currentBalance = _assetBalance(entryAsset);
-                uint256 adjustedAmount = currentBalance < entryAmount ? currentBalance : entryAmount;
-                if (isNative) {
-                    require(Swapper.swap{value: adjustedAmount}(entryAsset, assets[i], adjustedAmount, address(this)) != 0, 'NO_TOKENS_RECEIVED');
-                } else {
-                    require(Swapper.swap(entryAsset, assets[i], adjustedAmount, address(this)) != 0, 'NO_TOKENS_RECEIVED');
-                }
+                // uint256 entryAmount = (invested * weights[i]) / weightsSum;
+                // uint256 currentBalance = _assetBalance(entryAsset);
+                // uint256 adjustedAmount = currentBalance < entryAmount ? currentBalance : entryAmount;
+                // if (isNative) {
+                    // require(Swapper.multiswap(transactions), 'NO_TOKENS_RECEIVED');
+                Swapper.multiswap(transactions);
+                // } else {
+                //     require(Swapper.multiswap(transactions), 'NO_TOKENS_RECEIVED');
+                // }
             }
         }
 
@@ -64,7 +65,7 @@ contract Pool is BasePool {
      * Burn kTokens and get entry asset
      * @param _shares - amount of kTokens to be burned to exchange for entryAsset
      */
-    function withdraw(uint256 _shares) public override {
+    function withdraw(uint256 _shares, bytes[] memory transactions) public override {
         require(_shares > 0, 'ZERO_AMOUNT');
         address entryAsset = entryAsset(); // gas saving
         uint256 sharePrice = PoolStorage.sharePrice();
@@ -140,21 +141,21 @@ contract Pool is BasePool {
         PoolStorage.recordWithdrawal(msg.sender, _shares, sharePrice, withdrawAmount, successFee, swapFeesLoss);
     }
 
-    function withdrawAll() public override {
-        uint256 shares = PoolStorage.balanceOf(msg.sender);
-        withdraw(shares);
-    }
+    // function withdrawAll() public override {
+    //     uint256 shares = PoolStorage.balanceOf(msg.sender);
+    //     withdraw(shares);
+    // }
 
     function _sellToExactAmount(
         address _tokenIn,
         address _tokenOut,
         uint256 _amountOut
     ) internal returns (uint256 received) {
-        uint256 amountIn = Swapper.getAmountIn(_tokenIn, _tokenOut, _amountOut);
+        uint256 amountIn = Swapper.getAmountOut(_tokenOut, _tokenIn, _amountOut);
         uint256 actualBalance = _assetBalance(_tokenIn);
         uint256 amount = actualBalance < amountIn ? actualBalance : amountIn;
         TransferHelper.safeApprove(_tokenIn, address(Swapper), amount);
-        received = Swapper.swap(_tokenIn, _tokenOut, amount, address(this));
+        // received = Swapper.swap(_tokenIn, _tokenOut, amount, address(this));
     }
 
     function _checkInaccuracy(uint256 expectedValue, uint256 realValue) internal pure {

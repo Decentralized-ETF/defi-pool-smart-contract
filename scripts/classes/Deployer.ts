@@ -16,15 +16,9 @@ export class Deployer {
         const [governance] = await ethers.getSigners()
         const network = hre.network.name
 
-        const routers = ROUTERS.filter((router) => router.network === network)
-
-        const routerAddresses = routers.map((val) => val.address)
-        const routerTypes = routers.map((val) => val.type)
-        const defaultRouter = routers.find((val) => val.isDefault)?.address || routers[0].address;
+        const defaultRouter = "0xDef1C0ded9bec7F1a1670819833240f027b25EfF";
         const Swapper = (await this.deploy(
-            'Swapper',
-            [routerAddresses, routerTypes, defaultRouter],
-            verify
+            'ZxSwapper'
         )) as Swapper
         const Factory = (await this.deploy('Factory', [governance.address, Swapper.address], verify)) as Factory
         await saveJSON({ swapper: Swapper.address, factory: Factory.address }, 'core')
